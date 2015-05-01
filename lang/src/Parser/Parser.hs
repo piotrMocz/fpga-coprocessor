@@ -14,6 +14,8 @@ import qualified Parser.Lexer as L
 -- -- StatementParser
 -- ------------------
 
+pStm :: Parser A.Stm
+pStm = A.Expr <$> pExpr <* L.newline
 
 -- ---------------------
 -- Expression Parser --
@@ -26,14 +28,14 @@ pIf = do
        L.ifL
        cond <- pExpr
        L.thenL
-       trueCase <- many pExpr
+       trueCase <- many pStm
        falseCase <- option [] parseElse
        L.endL
        return $ A.If cond trueCase falseCase
     where 
        parseElse = do
        	  L.elseL
-       	  many pExpr
+       	  many pStm
 
 pLit :: Parser A.Expr
 pLit = A.Lit <$> L.integer
@@ -50,8 +52,8 @@ term = factor `chainl1` L.mulop
 factor = choice [pLit, pVar] 
 
 
-main ::  MonadIO m => m (Maybe A.Expr)
-main = parseFromFile pExpr "example"
+main ::  MonadIO m => m (Maybe A.Stm)
+main = parseFromFile pStm "example"
 
 
 

@@ -5,7 +5,7 @@ module Parser.AST where
 data Expr = Lit Integer
           | Var String
           | BinOp Op Expr Expr
-          | If Expr [Expr] [Expr]
+          | If Expr [Stm] [Stm]
           | Assign String Expr
           deriving Show
 
@@ -14,5 +14,6 @@ data Op = Add | Sub | Mul | Div deriving Show
 
 
 data Stm = Decl String String Expr
+         | Expr Expr
          deriving Show
 
