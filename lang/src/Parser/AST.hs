@@ -2,18 +2,20 @@
 
 module Parser.AST where
 
-data Expr = Lit Integer
-          | Var String
+data Expr = Lit Int
+          | VarE Var
           | BinOp Op Expr Expr
-          | If Expr [Stm] [Stm]
-          | Assign String Expr
+          | If Expr [Expr] [Expr]
+          | Assign Var Expr
+          | Decl Var Type Expr
+          | Unit
           deriving Show
 
 -- Op is defined in MIPS.hs as follows:
 data Op = Add | Sub | Mul | Div deriving Show
 
 
-data Stm = Decl String String Expr
-         | Expr Expr
-         deriving Show
+--data Stm = Decl String String Expr
+--         | Expr Expr
+--         deriving Show
 

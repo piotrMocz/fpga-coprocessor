@@ -15,7 +15,7 @@ import qualified Parser.Lexer as L
 -- ------------------
 
 pStm :: Parser A.Stm
-pStm = A.Expr <$> pExpr <* L.newline
+pStm = A.Expr <$> pExpr
 
 -- ---------------------
 -- Expression Parser --
@@ -69,8 +69,6 @@ main = parseFromFile pStm "example"
 
 -- exprList :: Parser [A.Expr]
 -- exprList = sepBy pExpr L.comma
-
-
 
 
 -- stmt :: Parser [A.Stm]

@@ -4,7 +4,7 @@ module Parser.Lexer where
 
 import Control.Applicative ((<$>), (<*>), (*>), (<*), pure)
 import Text.Parser.Char (oneOf, alphaNum, char)
-import Text.Parser.Combinators (many, choice, notFollowedBy)
+import Text.Parser.Combinators (many, choice, notFollowedBy, try	)
 import Text.Parser.Token (TokenParsing, integer', symbol)
 import qualified Parser.AST as A
 
@@ -13,7 +13,7 @@ integer :: TokenParsing m => m Integer
 integer = integer' <* whitespaces
 
 variable :: (TokenParsing m, Monad m) => m String
-variable = (notFollowedBy $ choice [ifL, thenL, endL, elseL]) *> ((:) <$> (oneOf ['a'..'z'])  <*> many alphaNum <* whitespaces)
+variable =  ((:) <$> (oneOf ['a'..'z'])  <*> many alphaNum <* whitespaces)
 
 equals :: TokenParsing m => m Char
 equals = char '=' <* whitespaces
@@ -24,8 +24,11 @@ addop = choice [char '+' *> whitespaces *> pure (A.BinOp A.Add), char '-' *> whi
 mulop = choice [char '*' *> whitespaces *> pure (A.BinOp A.Mul), char '/' *> whitespaces *> pure (A.BinOp A.Div)]
 
 
+whitespaces1 :: TokenParsing m => m String
+whitespaces1 = (:) <$> oneOf "\n\t " <*> (many $ oneOf "\n\t ")
+
 whitespaces :: TokenParsing m => m String
-whitespaces = many $ oneOf "\t "
+whitespaces= many $ oneOf "\n\t "
 
 newline :: TokenParsing m => m String
 newline = many $ oneOf "\n;"
