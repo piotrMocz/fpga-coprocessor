@@ -12,9 +12,7 @@ library
                       Parser.Parser
  
   build-depends:       base,
-                       trifecta,
-                       parsers,
-                       transformers,
+                       parsec,
                        pretty-show
 
   hs-source-dirs:   src
