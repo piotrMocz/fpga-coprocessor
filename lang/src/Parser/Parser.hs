@@ -1,105 +1,71 @@
 module Parser.Parser where
 
-import Control.Applicative ((<$>), (<*>), (*>), (<*), pure)
-import Control.Monad.IO.Class (MonadIO)
-import Text.Parser.Token (TokenParsing)
-import Text.Trifecta.Parser (parseFromFile, Parser)
-import Text.Parser.Combinators (chainl1, choice, option, many)
+import Control.Monad
+import System.IO (readFile)
+import Text.ParserCombinators.Parsec (parse, Parser, sepBy1, (<|>))
+import Text.ParserCombinators.Parsec.Expr (Operator(Infix), Assoc(AssocLeft), buildExpressionParser)
+import Text.Show.Pretty (ppShow)
+
 
 import qualified Parser.AST   as A
 import qualified Parser.Lexer as L
 
+progParser :: Parser [A.Expr]
+progParser = L.whiteSpace >> statement
 
--- ------------------
--- -- StatementParser
--- ------------------
-
-pStm :: Parser A.Stm
-pStm = A.Expr <$> pExpr
-
--- ---------------------
--- Expression Parser --
--- ---------------------
-pExpr :: Parser A.Expr
-pExpr = L.whitespaces *> choice [pIf, pBinOp]
-
-pIf :: Parser A.Expr
-pIf = do
-       L.ifL
-       cond <- pExpr
-       L.thenL
-       trueCase <- many pStm
-       falseCase <- option [] parseElse
-       L.endL
-       return $ A.If cond trueCase falseCase
-    where 
-       parseElse = do
-       	  L.elseL
-       	  many pStm
-
-pLit :: Parser A.Expr
-pLit = A.Lit <$> L.integer
-
-pVar :: Parser A.Expr
-pVar = A.Var <$> L.variable
-
-pAssign :: Parser A.Expr
-pAssign = A.Assign <$> L.variable <* L.equals <*> pExpr
-
-pBinOp :: Parser A.Expr
-pBinOp = term `chainl1` L.addop
-term = factor `chainl1` L.mulop
-factor = choice [pLit, pVar] 
-
-
-main ::  MonadIO m => m (Maybe A.Stm)
-main = parseFromFile pStm "example"
-
-
-
--- --------------------
--- -- Program parser --
--- --------------------
-
--- prog :: Parser [A.Stm]
--- prog =  stmt
-
--- varList :: Parser [String]
--- varList = sepBy L.identifier L.comma
-
--- exprList :: Parser [A.Expr]
--- exprList = sepBy pExpr L.comma
-
-
--- stmt :: Parser [A.Stm]
--- stmt = sepEndBy table (L.reservedOp ";")
---     where 
---       table = do  { 
---                 e <- pExpr;
---                 return . A.Expr $ e;
---               }
---        <|> do { L.reserved "if"; cond <- pExpr;
---                 L.reserved "then"; s1 <- stmt;
---                 L.reserved "else"; s2 <- stmt;
---                 return $ A.If cond s1 s2}
---        <|> do { L.reserved "while"; cond <- pExpr; s <- stmt;
---                return $ A.While cond s
---               }
+statement :: Parser [A.Expr]
+statement = sepBy1 aExpression L.whiteSpace
 
 
 
 
--- parse input =
---   case runParser p () "" input of
---     Left err -> error ("parsing " ++ show err)
---     Right s -> s
---   where
---     p =   L.integer
+ifStmt :: Parser A.Expr
+ifStmt =
+  do L.reserved "if"
+     cond  <- aExpression
+     L.reserved "then"
+     stmt1 <- statement
+     L.reserved "else"
+     stmt2 <- statement
+     L.reserved "end"
+     return $ A.If cond stmt1 stmt2
+ 
 
--- parseFile :: String -> IO ()
--- parseFile filename = do 
---           input <- readFile filename; 
---           putStrLn . show $ parse input 
 
--- utilfun2 '\n' = ';'
--- utilfun2 x = x
+assignStmt :: Parser A.Expr
+assignStmt =
+  do var  <- L.identifier
+     L.reservedOp "="
+     expr <- aExpression
+     return $ A.Assign var expr
+
+
+aExpression :: Parser A.Expr
+aExpression = buildExpressionParser aOperators aTerm
+
+
+aOperators = [ [Infix  (L.reservedOp "*"   >> return (A.BinOp A.Mul)) AssocLeft,
+                Infix  (L.reservedOp "/"   >> return (A.BinOp A.Div)) AssocLeft]
+             , [Infix  (L.reservedOp "+"   >> return (A.BinOp A.Add)) AssocLeft,
+                Infix  (L.reservedOp "-"   >> return (A.BinOp A.Sub  )) AssocLeft]
+              ]
+ 
+
+aTerm =  L.parens aExpression
+     <|> liftM A.VarE L.identifier
+     <|> liftM A.Lit L.integer
+     <|> ifStmt
+
+
+parseString :: String -> [A.Expr]
+parseString str =
+  case parse progParser "" str of
+    Left e  -> error $ show e
+    Right r -> r
+ 
+parseFile :: String -> IO ()
+parseFile file =
+  do program  <- readFile file
+     case parse progParser "" program of
+       Left e  -> print e >> fail "parse error"
+       Right r -> putStrLn . ppShow $ r

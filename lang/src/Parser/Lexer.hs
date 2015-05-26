@@ -1,46 +1,33 @@
--- {-# LANGUAGE NoMonomorphismRestriction #-}
--- {-# LANGUAGE FlexibleContexts #-}
 module Parser.Lexer where
 
-import Control.Applicative ((<$>), (<*>), (*>), (<*), pure)
-import Text.Parser.Char (oneOf, alphaNum, char)
-import Text.Parser.Combinators (many, choice, notFollowedBy, try	)
-import Text.Parser.Token (TokenParsing, integer', symbol)
-import qualified Parser.AST as A
+import           Text.ParserCombinators.Parsec          (letter, alphaNum)
+import           Text.ParserCombinators.Parsec.Language (emptyDef)
+import qualified Text.ParserCombinators.Parsec.Token    as Token
 
 
-integer :: TokenParsing m => m Integer
-integer = integer' <* whitespaces
+languageDef =
+  emptyDef { Token.commentStart    = "{#"
+           , Token.commentEnd      = "#}"
+           , Token.commentLine     = "#"
+           , Token.identStart      = letter
+           , Token.identLetter     = alphaNum
+           , Token.reservedNames   = [ "if"
+                                     , "then"
+                                     , "else"
+                                     , "end"
+                                     ]
+           , Token.reservedOpNames = ["+", "-", "*", "/", "="]
+           }
 
-variable :: (TokenParsing m, Monad m) => m String
-variable =  ((:) <$> (oneOf ['a'..'z'])  <*> many alphaNum <* whitespaces)
+lexer = Token.makeTokenParser languageDef
 
-equals :: TokenParsing m => m Char
-equals = char '=' <* whitespaces
-
-
-addop, mulop :: TokenParsing m => m (A.Expr -> A.Expr -> A.Expr)
-addop = choice [char '+' *> whitespaces *> pure (A.BinOp A.Add), char '-' *> whitespaces *> pure (A.BinOp A.Sub)]
-mulop = choice [char '*' *> whitespaces *> pure (A.BinOp A.Mul), char '/' *> whitespaces *> pure (A.BinOp A.Div)]
-
-
-whitespaces1 :: TokenParsing m => m String
-whitespaces1 = (:) <$> oneOf "\n\t " <*> (many $ oneOf "\n\t ")
-
-whitespaces :: TokenParsing m => m String
-whitespaces= many $ oneOf "\n\t "
-
-newline :: TokenParsing m => m String
-newline = many $ oneOf "\n;"
-
-ifL :: TokenParsing m => m String
-ifL = symbol "if" <* whitespaces
-
-thenL :: TokenParsing m => m String
-thenL = symbol "then" <* whitespaces
-
-elseL :: TokenParsing m => m String
-elseL = symbol "else" <* whitespaces
-
-endL :: TokenParsing m => m String
-endL = symbol "end" <* whitespaces
+identifier = Token.identifier lexer -- parses an identifier
+reserved   = Token.reserved   lexer -- parses a reserved name
+reservedOp = Token.reservedOp lexer -- parses an operator
+parens     = Token.parens     lexer -- parses surrounding parenthesis:
+                                    --   parens p
+                                    -- takes care of the parenthesis and
+                                    -- uses p to parse what's inside them
+integer    = Token.integer    lexer -- parses an integer
+semi       = Token.semi       lexer -- parses a semicolon
+whiteSpace = Token.whiteSpace lexer -- parses whitespace

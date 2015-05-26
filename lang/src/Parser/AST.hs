@@ -1,8 +1,6 @@
--- Introducing static types
-
 module Parser.AST where
 
-data Expr = Lit Int
+data Expr = Lit Integer	
           | VarE Var
           | BinOp Op Expr Expr
           | If Expr [Expr] [Expr]
@@ -11,11 +9,8 @@ data Expr = Lit Int
           | Unit
           deriving Show
 
--- Op is defined in MIPS.hs as follows:
+type Var = String
+type Type = String
+
+
 data Op = Add | Sub | Mul | Div deriving Show
-
-
---data Stm = Decl String String Expr
---         | Expr Expr
---         deriving Show
-
