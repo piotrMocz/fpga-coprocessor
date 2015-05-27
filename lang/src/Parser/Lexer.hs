@@ -16,7 +16,7 @@ languageDef =
                                      , "else"
                                      , "end"
                                      ]
-           , Token.reservedOpNames = ["+", "-", "*", "/", "="]
+           , Token.reservedOpNames = ["+", "-", "*", "/", "=", ":"]
            }
 
 lexer = Token.makeTokenParser languageDef

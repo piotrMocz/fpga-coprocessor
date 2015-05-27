@@ -2,7 +2,7 @@ module Parser.Parser where
 
 import Control.Monad
 import System.IO (readFile)
-import Text.ParserCombinators.Parsec (parse, Parser, sepBy1, (<|>))
+import Text.ParserCombinators.Parsec (parse, Parser, sepBy1, (<|>), try)
 import Text.ParserCombinators.Parsec.Expr (Operator(Infix), Assoc(AssocLeft), buildExpressionParser)
 import Text.Show.Pretty (ppShow)
 
@@ -39,6 +39,14 @@ assignStmt =
      expr <- aExpression
      return $ A.Assign var expr
 
+declStmt :: Parser A.Expr
+declStmt =
+    do var <- L.identifier
+       L.reservedOp ":"
+       tp <- L.identifier
+       L.reservedOp "="
+       expr <- aExpression
+       return $ A.Decl var tp expr
 
 aExpression :: Parser A.Expr
 aExpression = buildExpressionParser aOperators aTerm
@@ -47,14 +55,17 @@ aExpression = buildExpressionParser aOperators aTerm
 aOperators = [ [Infix  (L.reservedOp "*"   >> return (A.BinOp A.Mul)) AssocLeft,
                 Infix  (L.reservedOp "/"   >> return (A.BinOp A.Div)) AssocLeft]
              , [Infix  (L.reservedOp "+"   >> return (A.BinOp A.Add)) AssocLeft,
-                Infix  (L.reservedOp "-"   >> return (A.BinOp A.Sub  )) AssocLeft]
+                Infix  (L.reservedOp "-"   >> return (A.BinOp A.Sub)) AssocLeft]
               ]
  
 
 aTerm =  L.parens aExpression
+     <|> try assignStmt
+     <|> try declStmt
+     <|> try ifStmt
      <|> liftM A.VarE L.identifier
      <|> liftM A.Lit L.integer
-     <|> ifStmt
+
 
 
 parseString :: String -> [A.Expr]

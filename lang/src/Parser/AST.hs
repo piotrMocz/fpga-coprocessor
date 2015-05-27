@@ -6,7 +6,6 @@ data Expr = Lit Integer
           | If Expr [Expr] [Expr]
           | Assign Var Expr
           | Decl Var Type Expr
-          | Unit
           deriving Show
 
 type Var = String
