@@ -15,8 +15,10 @@ languageDef =
                                      , "then"
                                      , "else"
                                      , "end"
+                                     , "Int"
+                                     , "IntVector"
                                      ]
-           , Token.reservedOpNames = ["+", "-", "*", "/", "=", ":"]
+           , Token.reservedOpNames = ["+", "-", "*", "/", "=", ":", "[", "]", ","]
            }
 
 lexer = Token.makeTokenParser languageDef

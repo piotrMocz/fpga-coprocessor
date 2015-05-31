@@ -1,6 +1,7 @@
 module Parser.AST where
 
 data Expr = Lit Integer	
+          | VecLit [Integer]
           | VarE Var
           | BinOp Op Expr Expr
           | If Expr [Expr] [Expr]
@@ -9,7 +10,7 @@ data Expr = Lit Integer
           deriving Show
 
 type Var = String
-type Type = String
+data Type = Scalar | Vector Integer deriving Show
 
 
 data Op = Add | Sub | Mul | Div deriving Show

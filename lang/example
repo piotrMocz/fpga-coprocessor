@@ -1,6 +1,9 @@
 a:Int = 5
-
+x:IntVector[3] = [1, 2, 3]
+y:IntVector[3] = [1, 2, 0]
 b:Int = if 2*0 then 2 - 1 else 1+1 end
 
-b = b+ 1
-a * b
+b = b + 1
+a = a * b
+
+z:IntVector[3] = x + y

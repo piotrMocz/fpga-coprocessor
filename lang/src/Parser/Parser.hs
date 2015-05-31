@@ -2,8 +2,9 @@ module Parser.Parser where
 
 import Control.Monad
 import System.IO (readFile)
-import Text.ParserCombinators.Parsec (parse, Parser, sepBy1, (<|>), try)
+import Text.ParserCombinators.Parsec (parse, Parser, sepBy1, sepBy, (<|>), try, between)
 import Text.ParserCombinators.Parsec.Expr (Operator(Infix), Assoc(AssocLeft), buildExpressionParser)
+import Text.ParserCombinators.Parsec (char)
 import Text.Show.Pretty (ppShow)
 
 
@@ -16,8 +17,28 @@ progParser = L.whiteSpace >> statement
 statement :: Parser [A.Expr]
 statement = sepBy1 aExpression L.whiteSpace
 
+pType :: Parser A.Type
+pType = try vectorType <|> try intType
 
+intType :: Parser A.Type
+intType = 
+    do L.reserved "Int"
+       return A.Scalar
 
+vectorType :: Parser A.Type
+vectorType = 
+    do L.reserved "IntVector"
+       L.reservedOp "["
+       size <- L.integer
+       L.reservedOp "]"
+       return $ A.Vector size
+
+pVecLit :: Parser A.Expr
+pVecLit = 
+    do L.reservedOp "["
+       numbers <- sepBy L.integer (L.reservedOp ",")
+       L.reservedOp "]"
+       return $ A.VecLit numbers
 
 ifStmt :: Parser A.Expr
 ifStmt =
@@ -43,7 +64,7 @@ declStmt :: Parser A.Expr
 declStmt =
     do var <- L.identifier
        L.reservedOp ":"
-       tp <- L.identifier
+       tp <- pType
        L.reservedOp "="
        expr <- aExpression
        return $ A.Decl var tp expr
@@ -60,6 +81,7 @@ aOperators = [ [Infix  (L.reservedOp "*"   >> return (A.BinOp A.Mul)) AssocLeft,
  
 
 aTerm =  L.parens aExpression
+     <|> try pVecLit
      <|> try assignStmt
      <|> try declStmt
      <|> try ifStmt
