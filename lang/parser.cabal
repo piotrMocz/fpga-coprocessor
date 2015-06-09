@@ -6,14 +6,15 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:    
-                      Parser.Lexer,
-                      Parser.AST,
-                      Parser.Parser
+  exposed-modules:  CodeGen.ASM
+                  , Parser.Lexer
+                  , Parser.AST
+                  , Parser.Parser
  
-  build-depends:       base,
-                       parsec,
-                       pretty-show
+  build-depends:    base
+                  , parsec
+                  , pretty-show
 
   hs-source-dirs:   src
-  default-language:    Haskell2010
+  default-language: Haskell2010
+

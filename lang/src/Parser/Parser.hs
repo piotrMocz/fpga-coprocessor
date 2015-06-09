@@ -11,7 +11,7 @@ import Text.Show.Pretty (ppShow)
 import qualified Parser.AST   as A
 import qualified Parser.Lexer as L
 
-progParser :: Parser [A.Expr]
+progParser :: Parser A.Module
 progParser = L.whiteSpace >> statement
 
 statement :: Parser [A.Expr]

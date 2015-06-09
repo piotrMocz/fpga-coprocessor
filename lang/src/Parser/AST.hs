@@ -1,5 +1,7 @@
 module Parser.AST where
 
+type Module = [Expr]
+
 data Expr = Lit Integer	
           | VecLit [Integer]
           | VarE Var
