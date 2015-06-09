@@ -33,18 +33,20 @@ createVReg n = if n >= vMinReg && n < vMaxReg then Just $ VReg n
                                               else Nothing
 
 
-data ASMInstruction = LoadInstr   { addr  :: SAddr, reg   :: SReg                   }
-                    | VLoadInstr  { vaddr :: VAddr, vreg  :: VReg                   }
-                    | StoreInstr  { reg   :: SReg,  addr  :: SAddr                  }
-                    | VStoreInstr { vreg  :: VReg,  vaddr :: VAddr                  }
-                    | AddInstr    { reg1  :: SReg,  reg2  :: SReg, regDest  :: SReg }
-                    | VAddInstr   { vreg1 :: VReg,  vreg2 :: VReg, vregDest :: VReg }
-                    | SubInstr    { reg1  :: SReg,  reg2  :: SReg, regDest  :: SReg }
-                    | VSubInstr   { vreg1 :: VReg,  vreg2 :: VReg, vregDest :: VReg }
-                    | MulInstr    { reg1  :: SReg,  reg2  :: SReg, regDest  :: SReg }
-                    | VMulInstr   { vreg1 :: VReg,  vreg2 :: VReg, vregDest :: VReg }
-                    | DivInstr    { reg1  :: SReg,  reg2  :: SReg, regDest  :: SReg }
-                    | VDivInstr   { vreg1 :: VReg,  vreg2 :: VReg, vregDest :: VReg } deriving (Eq, Ord)
+data ASMInstruction = MovS   { sregSrc :: SReg,  sregDst :: SReg                  }
+                    | MovV   { vregSrc :: SReg,  sregDst :: SReg                  }
+                    | LoadS  { addr    :: SAddr, sreg    :: SReg                  }
+                    | LoadV  { vaddr   :: VAddr, vreg    :: VReg                  }
+                    | StoreS { sreg    :: SReg,  saddr   :: SAddr                 }
+                    | StoreV { vreg    :: VReg,  vaddr   :: VAddr                 }
+                    | AddS   { sreg1   :: SReg,  sreg2   :: SReg, sregDst :: SReg }
+                    | AddV   { vreg1   :: VReg,  vreg2   :: VReg, vregDst :: VReg }
+                    | SubS   { sreg1   :: SReg,  sreg2   :: SReg, sregDst :: SReg }
+                    | SubV   { vreg1   :: VReg,  vreg2   :: VReg, vregDst :: VReg }
+                    | MulS   { sreg1   :: SReg,  sreg2   :: SReg, sregDst :: SReg }
+                    | MulV   { vreg1   :: VReg,  vreg2   :: VReg, vregDst :: VReg }
+                    | DivS   { sreg1   :: SReg,  sreg2   :: SReg, sregDst :: SReg }
+                    | DivV   { vreg1   :: VReg,  vreg2   :: VReg, vregDst :: VReg } deriving (Eq, Ord)
 
 
 instance Show SAddr where
@@ -58,17 +60,17 @@ instance Show VReg where
 
 
 instance Show ASMInstruction where
-  show (LoadInstr   addr reg)  = "LD "  ++ (show addr) ++ " " ++ (show reg)
-  show (VLoadInstr  addr reg)  = "LDV " ++ (show addr) ++ " " ++ (show reg)
-  show (StoreInstr  reg  addr) = "ST "  ++ (show reg)  ++ " " ++ (show addr)
-  show (VStoreInstr addr reg)  = "STV " ++ (show reg)  ++ " " ++ (show addr)
-  show (AddInstr    reg1 reg2 regDest) = "ADD "  ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
-  show (VAddInstr   reg1 reg2 regDest) = "ADDV " ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
-  show (SubInstr    reg1 reg2 regDest) = "SUB "  ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
-  show (VSubInstr   reg1 reg2 regDest) = "SUBV " ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
-  show (MulInstr    reg1 reg2 regDest) = "MUL "  ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
-  show (VMulInstr   reg1 reg2 regDest) = "MULV " ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
-  show (DivInstr    reg1 reg2 regDest) = "DIV "  ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
-  show (VDivInstr   reg1 reg2 regDest) = "DIVV " ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
+  show (LoadS  addr reg)          = "LD "   ++ (show addr) ++ " " ++ (show reg)
+  show (LoadV  addr reg)          = "LDV "  ++ (show addr) ++ " " ++ (show reg)
+  show (StoreS reg  addr)         = "ST "   ++ (show reg)  ++ " " ++ (show addr)
+  show (StoreV addr reg)          = "STV "  ++ (show reg)  ++ " " ++ (show addr)
+  show (AddS   reg1 reg2 regDest) = "ADD "  ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
+  show (AddV   reg1 reg2 regDest) = "ADDV " ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
+  show (SubS   reg1 reg2 regDest) = "SUB "  ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
+  show (SubV   reg1 reg2 regDest) = "SUBV " ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
+  show (MulS   reg1 reg2 regDest) = "MUL "  ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
+  show (MulV   reg1 reg2 regDest) = "MULV " ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
+  show (DivS   reg1 reg2 regDest) = "DIV "  ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
+  show (DivV   reg1 reg2 regDest) = "DIVV " ++ (show reg1) ++ " " ++ (show reg2) ++ " " ++ (show regDest)
   
   
