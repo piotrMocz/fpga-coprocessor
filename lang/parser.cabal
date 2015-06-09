@@ -7,11 +7,14 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:  CodeGen.ASM
+                  , CodeGen.Generator
                   , Parser.Lexer
                   , Parser.AST
                   , Parser.Parser
  
   build-depends:    base
+                  , mtl
+                  , lens
                   , parsec
                   , pretty-show
 

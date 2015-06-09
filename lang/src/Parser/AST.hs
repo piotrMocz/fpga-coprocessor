@@ -9,10 +9,11 @@ data Expr = Lit Integer
           | If Expr [Expr] [Expr]
           | Assign Var Expr
           | Decl Var Type Expr
-          deriving Show
+          deriving (Show, Eq, Ord)
 
 type Var = String
-data Type = Scalar | Vector Integer deriving Show
+data Type = Scalar | Vector Integer deriving (Show, Eq, Ord)
 
 
-data Op = Add | Sub | Mul | Div deriving Show
+data Op = Add | Sub | Mul | Div deriving (Show, Eq, Ord)
+
