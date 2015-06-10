@@ -51,24 +51,24 @@ Składnia języka przypomina nieco język Ruby, rozszerzony o statyczne typowani
 
 3. Instrukcja warunkowa
 
-    var y: Int = if x > 10 then
-                 11
-             else
-                 x + 1
-             end
+        var y: Int = if x > 10 then
+                         11
+                     else
+                         x + 1
+                     end
 
     Mówiąc dokładniej jest to wyrażenie warunkowe, gdyż zawsze zwraca wartość. Dzięki temu możemy podstawić
     powyższe wyrażenie pod zmienną. Nie ma znaczenia rozłożenie białych znaków, a więc powyższy fragment kodu
     moglibyśmy zapisać również w bardziej zwartej formie:
 
-    var y: Int = if x > 10 then 11 else x + 1 end
+        var y: Int = if x > 10 then 11 else x + 1 end
 
 4. Pętle
 
-    for (x: Int) in [1, 2, 3, 4, 5] do
-        a = x + 5
-        x * 2
-    end
+        for (x: Int) in [1, 2, 3, 4, 5] do
+            a = x + 5
+            x * 2
+        end
 
     For jest jedyną pętlą dostępną w języku Radom. Jest to specyficzna odmiana pętli, gdyż polega na iteracji
     po wektorze. Można ją również traktować jako konstruktor nowego wektora: powyższa pętla zwróci wynik
@@ -78,14 +78,14 @@ Składnia języka przypomina nieco język Ruby, rozszerzony o statyczne typowani
 5. Funkcje
     Definicja funkcji odbywa się za pomocą słowa kluczowego "def":
     
-    def square(x: Int): Int do
-        x * x
-    end
+        def square(x: Int): Int do
+            x * x
+        end
 
-    def axpy(a: Int, x: IntVector[s], y: IntVector[s]): IntVector do
-        var ax = a * x  # you can declare variables inside functions
-        y + ax
-    end
+        def axpy(a: Int, x: IntVector[s], y: IntVector[s]): IntVector do
+            var ax = a * x  # you can declare variables inside functions
+            y + ax
+        end
 
     Funkcje nie używają słowa kluczowego "return". Zamiast tego zawsze zwracana jest wartość ostatniej
     instrukcji w funkcji (jako, że w języku Radom wszystko jest wyrażeniem, a więc ma jakąś wartość,
