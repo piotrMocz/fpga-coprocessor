@@ -18,12 +18,9 @@ import qualified Parser.AST                 as AST
 type SymTable = Map String VarInfo
 
 
-data VarType = Scalar | Vector deriving (Show, Eq, Ord)
-
 
 data VarInfo = VarInfo {
                _varName :: String
-             , _varType :: VarType
              , _varAddr :: Addr
              } deriving (Show, Eq, Ord)
 
@@ -61,20 +58,27 @@ processAST ast = mapM_ processExpr ast
 
 processExpr :: AST.Expr -> GeneratorState ()
 processExpr expr = case expr of
-    AST.Lit i           -> pushS (fromIntegral i      :: Int  ) -- TODO change integers to ints
+    AST.Lit i           -> pushV [fromIntegral i      :: Int  ] -- TODO change integers to ints
     AST.VecLit is       -> pushV (map fromIntegral is :: [Int])
     AST.VarE var        -> lookupVar var
     AST.Assign var expr -> createVar var expr
-    AST.BinOp op l r    -> do {processExpr l; processExpr r;}
+    AST.BinOp op l r    -> do {processExpr l; processExpr r; processOp op;}
     _                   -> throwE $ GeneratorError "Instruction not yet implemented"
+
+processOp :: AST.Op -> GeneratorState ()
+processOp op = pushASMInstr $ case op of
+                   AST.Add -> ASM.Add
+                   AST.Sub -> ASM.Sub
+                   AST.Mul -> ASM.Mul
+                   AST.Div -> ASM.Div
 
 
 createVar :: AST.Var -> AST.Expr -> GeneratorState ()
 createVar var expr = do
     addr <- getAvailableAddrS
     processExpr expr
-    pushVarInfo $ VarInfo var Scalar addr
-    pushASMInstr $ ASM.StoreS addr
+    pushVarInfo $ VarInfo var addr
+    pushASMInstr $ ASM.Store addr
 
 
 --------------------------------------------------------------
@@ -84,7 +88,7 @@ createVar var expr = do
 pushASMInstr :: ASM.ASMInstruction -> GeneratorState ()
 pushASMInstr instr = do
     genData <- get
-    let newData = genData & asmCode %~ (instr :)
+    let newData = genData & asmCode %~ (++ [instr])
     put newData
 
 
@@ -124,20 +128,13 @@ lookupVar var = do
     st <- get
     case Map.lookup var (st ^. symTable) of
         Nothing    -> throwE . GeneratorError $ "Using undeclared variable name: " ++ var
-        Just vInfo -> pushASMInstr $ ASM.LoadS (vInfo ^. varAddr) -- TODO this function can be
+        Just vInfo -> pushASMInstr $ ASM.Load (vInfo ^. varAddr) -- TODO this function can be
                                                                   -- generic with respect to var type
-
-
-pushS :: Int -> GeneratorState ()
-pushS v = case ASM.createSVal v of
-    Nothing  -> throwE $ GeneratorError "Scalar value out of range"
-    Just val -> pushASMInstr $ PushS val
-
 
 pushV :: [Int] -> GeneratorState ()
 pushV vs = case ASM.createVVal vs of
     Nothing   -> throwE $ GeneratorError "Vector value out of range"
-    Just vals -> pushASMInstr $ PushV vals
+    Just vals -> pushASMInstr $ Push vals
 
 
 emptyState = GeneratorData [] [] Map.empty
