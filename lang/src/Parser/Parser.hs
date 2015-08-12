@@ -96,9 +96,9 @@ parseString str =
     Left e  -> error $ show e
     Right r -> r
  
-parseFile :: String -> IO ()
+parseFile :: String -> IO A.Module
 parseFile file =
   do program  <- readFile file
-     case parse progParser "" program of
-       Left e  -> print e >> fail "parse error"
-       Right r -> putStrLn . ppShow $ r
+     return $ case parse progParser "" program of
+                Left e  -> []
+                Right r -> r

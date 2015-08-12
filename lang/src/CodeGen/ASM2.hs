@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances    #-}
+
 module CodeGen.ASM2 where
 
 import Control.Lens
@@ -94,3 +96,6 @@ instance MakeASM ASMInstruction where
 
 instance Show ASMInstruction where
     show instr = makeASM instr
+
+instance MakeASM [ASMInstruction] where
+    makeASM instrs = unlines $ fmap show instrs

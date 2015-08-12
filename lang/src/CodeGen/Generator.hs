@@ -51,6 +51,9 @@ type GeneratorState a  = ExceptT GeneratorError (State GeneratorData) a
 --------------------------------------------------------------
 -- Processing AST
 --------------------------------------------------------------
+runASTTranslation :: AST.Module -> GeneratorData
+runASTTranslation ast = execState (runExceptT $ processAST ast) (emptyState [] [])
+
 
 processAST :: AST.Module -> GeneratorState () -- ASM.ASMCode
 processAST ast = mapM_ processExpr ast
@@ -62,6 +65,7 @@ processExpr expr = case expr of
     AST.VecLit is       -> pushV (map fromIntegral is :: [Int])
     AST.VarE var        -> lookupVar var
     AST.Assign var expr -> createVar var expr
+    AST.BinOp op l r    -> do {processExpr l; processExpr r;}
     _                   -> throwE $ GeneratorError "Instruction not yet implemented"
 
 
