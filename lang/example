@@ -1,7 +1,15 @@
-1 + 1 * 2
+{# 1 + 1 * 2 #}
 
 
-
+if 2*0 then
+    if 2 - 1 then
+        12
+    else
+        3 + 1
+    end
+else
+    1 + 1
+end
 
 
 

@@ -2,7 +2,7 @@ module Parser.AST where
 
 type Module = [Expr]
 
-data Expr = Lit Integer	
+data Expr = Lit Integer
           | VecLit [Integer]
           | VarE Var
           | BinOp Op Expr Expr

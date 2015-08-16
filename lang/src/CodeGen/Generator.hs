@@ -2,6 +2,7 @@
 
 module CodeGen.Generator where
 
+import           Control.Applicative        ((<$>), (<*>), (*>))
 import           Control.Lens
 import           Control.Monad.Trans.Except
 import           Control.Monad.State
@@ -31,8 +32,8 @@ data GeneratorData = GeneratorData {
                      _asmCode  :: ASM.ASMCode
                    , _modAST   :: AST.Module
                    , _symTable :: SymTable
-                   , _avAddrsS :: [Addr]
-                   , _avAddrsV :: [Addr]
+                   , _avAddrs  :: [Addr]
+                   , _avLab    :: Int
                    } deriving (Show, Eq, Ord)
 
 makeLenses ''GeneratorData
@@ -49,7 +50,7 @@ type GeneratorState a  = ExceptT GeneratorError (State GeneratorData) a
 -- Processing AST
 --------------------------------------------------------------
 runASTTranslation :: AST.Module -> GeneratorData
-runASTTranslation ast = execState (runExceptT $ processAST ast) (emptyState [] [])
+runASTTranslation ast = execState (runExceptT $ processAST ast) (emptyState [] 0)
 
 
 processAST :: AST.Module -> GeneratorState () -- ASM.ASMCode
@@ -62,8 +63,24 @@ processExpr expr = case expr of
     AST.VecLit is       -> pushV (map fromIntegral is :: [Int])
     AST.VarE var        -> lookupVar var
     AST.Assign var expr -> createVar var expr
-    AST.BinOp op l r    -> do {processExpr l; processExpr r; processOp op;}
+    AST.BinOp op l r    -> processExpr l *> processExpr r *> processOp op
+    AST.If cond ts fs   -> processIf cond ts fs
     _                   -> throwE $ GeneratorError "Instruction not yet implemented"
+
+
+processIf :: AST.Expr -> [AST.Expr] -> [AST.Expr] -> GeneratorState ()
+processIf cond ts fs = do
+    labEnd  <- ASM.Lab <$> getNextLabel
+    labElse <- ASM.Lab <$> getNextLabel
+
+    processExpr cond
+    pushASMInstr $ ASM.JumpZ labElse
+    mapM_ processExpr ts
+    pushASMInstr $ ASM.Jump  labEnd
+    pushASMInstr $ ASM.Label labElse
+    mapM_ processExpr fs
+    pushASMInstr $ ASM.Label labEnd
+
 
 processOp :: AST.Op -> GeneratorState ()
 processOp op = pushASMInstr $ case op of
@@ -75,9 +92,9 @@ processOp op = pushASMInstr $ case op of
 
 createVar :: AST.Var -> AST.Expr -> GeneratorState ()
 createVar var expr = do
-    addr <- getAvailableAddrS
+    addr <- getAvailableAddr
     processExpr expr
-    pushVarInfo $ VarInfo var addr
+    pushVarInfo  $ VarInfo var addr
     pushASMInstr $ ASM.Store addr
 
 
@@ -92,28 +109,25 @@ pushASMInstr instr = do
     put newData
 
 
-getAvailableAddrS :: GeneratorState Addr
-getAvailableAddrS = do
+getAvailableAddr :: GeneratorState Addr
+getAvailableAddr = do
     st <- get
-    let addr = st ^. avAddrsS
+    let addr = st ^. avAddrs
     case addr of
         []     -> throwE $ GeneratorError "No more address space for new variables"
         (a:as) -> do
-            let newSt = st & avAddrsS .~ as
+            let newSt = st & avAddrs .~ as
             put newSt
             return a
 
 
-getAvailableAddrV :: GeneratorState Addr
-getAvailableAddrV = do
+getNextLabel :: GeneratorState Int
+getNextLabel = do
     st <- get
-    let addr = st ^. avAddrsV
-    case addr of
-        []     -> throwE $ GeneratorError "No more address space for new variables"
-        (a:as) -> do
-            let newSt = st & avAddrsV .~ as
-            put newSt
-            return a
+    let lab   = st ^. avLab
+        newSt = st & avLab %~ (+1)
+    put newSt
+    return lab
 
 
 pushVarInfo :: VarInfo -> GeneratorState ()
