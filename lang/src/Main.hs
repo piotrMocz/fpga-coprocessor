@@ -1,17 +1,25 @@
 module Main where
 
 
-import Parser.Parser     (parseFile)
-import CodeGen.Generator (asmCode, runASTTranslation)
-import CodeGen.ASM2      (makeASM)
+import Parser.Parser       (parseFile)
+import CodeGen.Generator   (asmCode, runASTTranslation)
+import CodeGen.ASM2        (makeASM)
+import CodeGen.LabelRename (renameLabels)
 
 import Text.Show.Pretty  (ppShow)
-import Control.Lens	
+import Control.Lens
 
 main :: IO ()
 main = do
     result <- parseFile "example"
+    print "=========== AST ========================"
     putStrLn . ppShow $ result
     let genData = runASTTranslation result
-    	asm = genData ^. asmCode
-    putStrLn . makeASM $ asm
+    	asm   = genData ^. asmCode
+        code1 = makeASM asm
+        asm2  = renameLabels asm
+        code2 = makeASM asm2
+    print "=========== ASM generation ============="
+    putStrLn code1
+    print "=========== Label renaming ============="
+    putStrLn code2

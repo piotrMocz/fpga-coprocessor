@@ -9,6 +9,7 @@ library
   exposed-modules:  CodeGen.ASM
                   , CodeGen.ASM2
                   , CodeGen.Generator
+                  , CodeGen.LabelRename
                   , Parser.Lexer
                   , Parser.AST
                   , Parser.Parser
