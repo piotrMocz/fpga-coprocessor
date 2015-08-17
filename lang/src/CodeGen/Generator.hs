@@ -62,7 +62,8 @@ processExpr expr = case expr of
     AST.Lit i           -> pushV [fromIntegral i      :: Int  ] -- TODO change integers to ints
     AST.VecLit is       -> pushV (map fromIntegral is :: [Int])
     AST.VarE var        -> lookupVar var
-    AST.Assign var expr -> createVar var expr
+    AST.Decl nm tp expr -> createVar nm tp expr
+    AST.Assign var expr -> processExpr expr *> storeInstr var
     AST.BinOp op l r    -> processExpr l *> processExpr r *> processOp op
     AST.If cond ts fs   -> processIf cond ts fs
     _                   -> throwE $ GeneratorError "Instruction not yet implemented"
@@ -90,11 +91,14 @@ processOp op = pushASMInstr $ case op of
                    AST.Div -> ASM.Div
 
 
-createVar :: AST.Var -> AST.Expr -> GeneratorState ()
-createVar var expr = do
-    addr <- getAvailableAddr
+createVar :: AST.Var -> AST.Type -> AST.Expr -> GeneratorState ()
+createVar nm tp expr = do
+    let size = case tp of
+            AST.Scalar -> 1
+            AST.Vector a -> a
+    addr <- getAvailableAddr . fromInteger $ size
     processExpr expr
-    pushVarInfo  $ VarInfo var addr
+    pushVarInfo  $ VarInfo nm addr
     pushASMInstr $ ASM.Store addr
 
 
@@ -109,16 +113,18 @@ pushASMInstr instr = do
     put newData
 
 
-getAvailableAddr :: GeneratorState Addr
-getAvailableAddr = do
+getAvailableAddr :: Int -> GeneratorState Addr
+getAvailableAddr size = do
     st <- get
     let addr = st ^. avAddrs
-    case addr of
-        []     -> throwE $ GeneratorError "No more address space for new variables"
-        (a:as) -> do
-            let newSt = st & avAddrs .~ as
+    if length addr > size
+      then
+        throwE $ GeneratorError "No more address space for new variables"
+      else
+          do
+            let newSt = st & avAddrs .~ (drop size addr )
             put newSt
-            return a
+            return . head $ addr
 
 
 getNextLabel :: GeneratorState Int
@@ -136,6 +142,19 @@ pushVarInfo vInfo = do
     let newSt = st & symTable %~ (Map.insert (vInfo ^. varName) vInfo)
     put st
 
+
+storeInstr :: AST.Var -> GeneratorState ()
+storeInstr nm = do
+    adr <- lookupAddr nm
+    pushASMInstr $ ASM.Store adr
+
+lookupAddr :: AST.Var -> GeneratorState Addr
+lookupAddr nm = do
+    st <- get
+    let mMap = st ^. symTable
+    case Map.lookup nm mMap of
+      Nothing -> error "Assigning to non-existing variable"
+      Just (VarInfo _ n ) -> return n
 
 lookupVar :: AST.Var -> GeneratorState ()
 lookupVar var = do
