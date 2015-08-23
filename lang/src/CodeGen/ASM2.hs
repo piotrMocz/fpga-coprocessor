@@ -41,19 +41,19 @@ unLabel (Label (Lab i)) = i
 unLabel _               = error "Cannot unlabel a nonlabel"
 
 
-data ASMInstruction = Load    { addr  :: Addr }
-                    | Store   { vaddr :: Addr }
-                    | Push    { vval  :: VVal }
-                    | JumpZ   { tgt   :: Lab  }
-                    | Jump    { tgt   :: Lab  }
-                    | Label   { lab   :: Lab  }
-                    | JumpIPZ { ipVal :: Int  }
-                    | JumpIP  { ipVal :: Int  }
-                    | Add
-                    | Sub
-                    | Mul
-                    | Div
-                    | Dup
+data ASMInstruction = Load    { addr  :: Addr }   -- 0
+                    | Store   { vaddr :: Addr }   -- 1
+                    | Push    { vval  :: VVal }   -- 2
+                    | JumpZ   { tgt   :: Lab  }   -- --
+                    | Jump    { tgt   :: Lab  }   -- --
+                    | Label   { lab   :: Lab  }   -- 3
+                    | JumpIPZ { ipVal :: Int  }   -- 4
+                    | JumpIP  { ipVal :: Int  }   -- 5
+                    | Add                         -- 6
+                    | Sub                         -- 7
+                    | Mul                         -- 8
+                    | Div                         -- 9
+                    | Dup                         -- 10
                     deriving (Eq, Ord)
 
 
