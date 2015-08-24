@@ -47,6 +47,11 @@ void vecPrint(Vec *v)
     printf("]\n");
 }
 
+void vecDel(Vec *v)
+{
+    free(v->vdata);
+}
+
 
 /* ------------------------------------------------------
  * Stack
@@ -62,7 +67,7 @@ typedef struct Stack
 Stack stack;
 
 
-void initStack(int l)
+void stackInit(int l)
 {
     stack.sp = -1;
     stack.sp_max = l - 1;
@@ -104,6 +109,13 @@ void stackPrint()
     printf("--- end ---\n\n");
 }
 
+
+void stackClean()
+{
+    for (int i = stack.sp; i >= 0; ++i)
+        vecDel(stack.data+i);
+    free(stack.data);
+}
 
 /* ------------------------------------------------------
  * Instructions
@@ -167,21 +179,77 @@ void printInstr(Instr instr)
 
 
 /* ---------------------------------------------------------
- * Tests
+ * Processing instructions
  * --------------------------------------------------------- */
 
-int IP = 0; // Instruction Pointer
-int ZF = 0; // zero-flag (was the expression just evaluated zero?)
+typedef struct ProgState
+{
+    int IP;  // instruction pointer
+    int ZF;  // zero flag
+    Instr *instrs;
+    Vec *ram;
+} ProgState;
+
+ProgState progState;
+
+void initProgState(const char *filename)
+{
+    progState.IP = 0;
+    progState.ZF = 0;
+    progState.instrs = (Instr *) malloc(256 * sizeof(Instr));
+    progState.ram = (Vec *) malloc(512 * sizeof(Vec));
+
+    FILE *fp = NULL;
+    if ((fp = fopen(filename, "w")) == NULL)
+    {
+        perror("Error reading program file");
+        exit(2);
+    }
+
+    char *line = (char *) malloc(32 * sizeof(char));
+    int delim = '\n';
+    size_t size = 32;
+    Instr tmpInstr;
+    int i = 0;
+    while (true)
+    {
+        ssize_t res = getdelim(&line, &size, delim, fp);
+        if (res == -1)
+        {
+            perror("Error reading line from program file.");
+            exit(3);
+        }
+        if (res < 2) break;
+
+        tmpInstr = parseInstr(line);
+        progState.instrs[i++] = tmpInstr;
+    }
+
+    free(line);
+    fclose(fp);
+}
 
 void jump(int newIP)
 {
-    IP = newIP;
+    progState.IP = newIP;
 }
 
 void jumpZ(int newIP)
 {
-    if (ZF) jump(newIP);
+    if (progState.ZF) jump(newIP);
 }
+
+
+void processLoad(int addr);
+void processStore(int addr);
+void processPush(Vec val);
+void processJump(int tgt);
+void processJumpZ(int tgt);
+void processAdd();
+void processSub();
+void processMul();
+void processDiv();
+void processDup();
 
 
 
@@ -200,7 +268,7 @@ int main(int argc, char **argv)
     int val = vecGet(&v, 2);
     printf("Vector value[2] = %d\n", val);
 
-    initStack(128);
+    stackInit(128);
     stackPush(v);
     stackPrint();
 
@@ -212,6 +280,7 @@ int main(int argc, char **argv)
 
     vecPrint(&v2);
 
+    stackClean();
     // Instr instr1 = parseInstr("9");
     // Instr instr2 = parseInstr("3 16");
     // Instr instr3 = parseInstr("4 1623");
