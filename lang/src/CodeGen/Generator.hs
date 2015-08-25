@@ -50,7 +50,7 @@ type GeneratorState a  = ExceptT GeneratorError (State GeneratorData) a
 -- Processing AST
 --------------------------------------------------------------
 runASTTranslation :: AST.Module -> GeneratorData
-runASTTranslation ast = execState (runExceptT $ processAST ast) (emptyState [] 0)
+runASTTranslation ast = execState (runExceptT $ processAST ast) (emptyState (fmap Addr [1..100]) 10)
 
 
 processAST :: AST.Module -> GeneratorState () -- ASM.ASMCode
@@ -117,7 +117,7 @@ getAvailableAddr :: Int -> GeneratorState Addr
 getAvailableAddr size = do
     st <- get
     let addr = st ^. avAddrs
-    if length addr > size
+    if length addr < size
       then
         throwE $ GeneratorError "No more address space for new variables"
       else
@@ -140,7 +140,7 @@ pushVarInfo :: VarInfo -> GeneratorState ()
 pushVarInfo vInfo = do
     st <- get
     let newSt = st & symTable %~ (Map.insert (vInfo ^. varName) vInfo)
-    put st
+    put newSt
 
 
 storeInstr :: AST.Var -> GeneratorState ()

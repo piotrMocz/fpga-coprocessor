@@ -2,7 +2,7 @@ module Main where
 
 
 import Parser.Parser       (parseFile)
-import CodeGen.Generator   (symTable, modAST, asmCode, runASTTranslation)
+import CodeGen.Generator   (symTable, modAST, asmCode, runASTTranslation, avAddrs)
 import CodeGen.ASM2        (makeASM)
 import CodeGen.LabelRename (renameLabels)
 
@@ -15,8 +15,9 @@ main = do
     print "=========== AST ========================"
     putStrLn . ppShow $ result
     let genData = runASTTranslation result
-    putStrLn . show $ genData ^. modAST
     putStrLn . show $ genData ^. symTable
+    putStrLn . show $ genData ^. avAddrs
+    putStrLn . show $ genData ^. asmCode
 
     	-- asm   = genData ^. asmCode
       --   code1 = makeASM asm
