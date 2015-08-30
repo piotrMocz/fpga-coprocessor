@@ -2,14 +2,13 @@
 
 module CodeGen.Generator where
 
-import           Control.Applicative        ((<$>), (<*>), (*>))
+import           Control.Applicative        ((<$>), (*>))
 import           Control.Lens
 import           Control.Monad.Trans.Except
 import           Control.Monad.State
-import           Control.Monad              (sequence, mapM)
 import qualified Data.Map                   as Map
 import           Data.Map                   (Map)
-import           Data.Monoid
+
 
 import           CodeGen.ASM2               as ASM
 import qualified Parser.AST                 as AST
@@ -85,10 +84,10 @@ processIf cond ts fs = do
 
 processOp :: AST.Op -> GeneratorState ()
 processOp op = pushASMInstr $ case op of
-                   AST.Add -> ASM.Add
-                   AST.Sub -> ASM.Sub
-                   AST.Mul -> ASM.Mul
-                   AST.Div -> ASM.Div
+                   AST.Add _ -> ASM.Add
+                   AST.Sub _ -> ASM.Sub
+                   AST.Mul _ -> ASM.Mul
+                   AST.Div _ -> ASM.Div
 
 
 createVar :: AST.Var -> AST.Type -> AST.Expr -> GeneratorState ()

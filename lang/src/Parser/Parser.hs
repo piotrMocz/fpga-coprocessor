@@ -9,6 +9,7 @@ import Text.Show.Pretty (ppShow)
 
 
 import qualified Parser.AST   as A
+import           Data.Default   (def)
 import qualified Parser.Lexer as L
 
 progParser :: Parser A.Module
@@ -21,12 +22,12 @@ pType :: Parser A.Type
 pType = try vectorType <|> try intType
 
 intType :: Parser A.Type
-intType = 
+intType =
     do L.reserved "Int"
        return A.Scalar
 
 vectorType :: Parser A.Type
-vectorType = 
+vectorType =
     do L.reserved "IntVector"
        L.reservedOp "["
        size <- L.integer
@@ -34,7 +35,7 @@ vectorType =
        return $ A.Vector size
 
 pVecLit :: Parser A.Expr
-pVecLit = 
+pVecLit =
     do L.reservedOp "["
        numbers <- sepBy L.integer (L.reservedOp ",")
        L.reservedOp "]"
@@ -50,7 +51,7 @@ ifStmt =
      stmt2 <- statement
      L.reserved "end"
      return $ A.If cond stmt1 stmt2
- 
+
 
 
 assignStmt :: Parser A.Expr
@@ -73,12 +74,12 @@ aExpression :: Parser A.Expr
 aExpression = buildExpressionParser aOperators aTerm
 
 
-aOperators = [ [Infix  (L.reservedOp "*"   >> return (A.BinOp A.Mul)) AssocLeft,
-                Infix  (L.reservedOp "/"   >> return (A.BinOp A.Div)) AssocLeft]
-             , [Infix  (L.reservedOp "+"   >> return (A.BinOp A.Add)) AssocLeft,
-                Infix  (L.reservedOp "-"   >> return (A.BinOp A.Sub)) AssocLeft]
+aOperators = [ [Infix  (L.reservedOp "*"   >> return (A.BinOp (A.Mul def))) AssocLeft,
+                Infix  (L.reservedOp "/"   >> return (A.BinOp (A.Div def))) AssocLeft]
+             , [Infix  (L.reservedOp "+"   >> return (A.BinOp (A.Add def))) AssocLeft,
+                Infix  (L.reservedOp "-"   >> return (A.BinOp (A.Sub def))) AssocLeft]
               ]
- 
+
 
 aTerm =  L.parens aExpression
      <|> try pVecLit
@@ -95,7 +96,7 @@ parseString str =
   case parse progParser "" str of
     Left e  -> error $ show e
     Right r -> r
- 
+
 parseFile :: String -> IO A.Module
 parseFile file =
   do program  <- readFile file

@@ -5,6 +5,7 @@ import Parser.Parser       (parseFile)
 import CodeGen.Generator   (symTable, modAST, asmCode, runASTTranslation, avAddrs)
 import CodeGen.ASM2        (makeASM)
 import CodeGen.LabelRename (renameLabels)
+import CodeGen.Typechecker (runTypechecker)
 
 import Text.Show.Pretty  (ppShow)
 import Control.Lens
@@ -12,8 +13,11 @@ import Control.Lens
 main :: IO ()
 main = do
     result <- parseFile "example"
-    print "=========== AST ========================"
+    print "=========== AST ================"
     putStrLn . ppShow $ result
+    print "========= Typechecking ========="
+    putStrLn . ppShow $ runTypechecker . head $ result
+    print "=========== ASMGen ============="
     let genData = runASTTranslation result
     putStrLn . show $ genData ^. symTable
     putStrLn . show $ genData ^. avAddrs
