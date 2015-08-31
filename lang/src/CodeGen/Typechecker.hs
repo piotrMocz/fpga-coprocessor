@@ -21,8 +21,8 @@ makeLenses ''TypecheckerError
 
 type TypeState a = ExceptT TypecheckerError (State TypeMap) a
 
--- runTypechecker :: Expr -> Expr
-runTypechecker e = evalState (runExceptT $ typeCheck e) MP.empty
+runTypechecker :: [Expr] -> Either TypecheckerError [Expr]
+runTypechecker e = evalState (runExceptT $ mapM typeCheck e) MP.empty
 -- runTypechecker e = do
 --     case runExceptT $ typeCheck e of
 --         Left l -> putStrLn . show $ l
@@ -42,7 +42,7 @@ typeCheck (Decl nm tp expr) = do
     e <- typeCheck expr
     exprTp <- infer expr
     if tp /= exprTp then throwE . TypecheckerError $ "Variable" <> nm <> "already declared."
-                else do {updateExistingValue nm tp; return $ Decl nm tp e}
+                else do {insertNewValue nm tp; return $ Decl nm tp e}
 
 typeCheck (BinOp op expr1 expr2) = do
     e1 <- typeCheck expr1
@@ -53,11 +53,23 @@ typeCheck (BinOp op expr1 expr2) = do
       then throwE . TypecheckerError $ show t1 <> "and" <> show t2 <> "differ."
       else case op of
               Mul _ -> return (BinOp (Mul t1) e1 e2 )
-              Add x -> return (BinOp (Add t1) e1 e2 )
-              Sub x -> return (BinOp (Sub t1) e1 e2 )
-              Div x -> return (BinOp (Div t1) e1 e2 )
+              Add _ -> return (BinOp (Add t1) e1 e2 )
+              Sub _ -> return (BinOp (Sub t1) e1 e2 )
+              Div _ -> return (BinOp (Div t1) e1 e2 )
 
-
+typeCheck (If cond t f) =
+    if null t || null f
+        then throwE . TypecheckerError $ "Empty statement block in if structure."
+        else do
+          e1 <- mapM typeCheck t
+          e2 <- mapM typeCheck f
+          t1 <- infer . last $ e1
+          t2 <- infer . last $ e2
+          if t1 /= t2
+              then throwE . TypecheckerError $ "Then and else returnse different structs"
+              else do
+                c <- typeCheck cond
+                return $ If c e1 e2
 
 
 infer :: Expr -> TypeState Type
@@ -67,13 +79,9 @@ infer (VarE var) = liftM (MP.lookup var) get
                  >>= \case
                      Nothing -> throwE . TypecheckerError $ "Variable" <> var <> "undeclared."
                      Just tp -> return tp
-infer (Assign nm expr) = do
-    e <- infer expr
-    return e
+infer (Assign _ expr) = infer expr
 
-infer (Decl _ _ expr) = do
-    e <- infer expr
-    return e
+infer (Decl _ _ expr) = infer expr
 
 infer (BinOp op expr1 expr2) = do
     tp1 <- infer expr1
@@ -86,8 +94,7 @@ infer (BinOp op expr1 expr2) = do
               Sub x -> return x
               Div x -> return x
 
-
--- infer (BinOp op expr1 expr2)
+infer (If _ t _) = infer . last $ t
 
 
 

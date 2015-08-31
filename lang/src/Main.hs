@@ -16,7 +16,7 @@ main = do
     print "=========== AST ================"
     putStrLn . ppShow $ result
     print "========= Typechecking ========="
-    putStrLn . ppShow $ runTypechecker . head $ result
+    putStrLn . ppShow $ runTypechecker result
     print "=========== ASMGen ============="
     let genData = runASTTranslation result
     putStrLn . show $ genData ^. symTable
