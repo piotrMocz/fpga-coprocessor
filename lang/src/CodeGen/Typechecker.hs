@@ -62,7 +62,7 @@ typeCheck (BinOp op expr1 expr2) = do
 
 infer :: Expr -> TypeState Type
 infer (Lit _) = return Scalar
-infer (VecLit a) = return $ Vector $ toInteger . length $ a
+infer (VecLit a) = return $ Vector $ fromInteger . toInteger . length $ a
 infer (VarE var) = liftM (MP.lookup var) get
                  >>= \case
                      Nothing -> throwE . TypecheckerError $ "Variable" <> var <> "undeclared."

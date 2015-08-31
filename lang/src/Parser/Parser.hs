@@ -32,14 +32,14 @@ vectorType =
        L.reservedOp "["
        size <- L.integer
        L.reservedOp "]"
-       return $ A.Vector size
+       return . A.Vector . fromInteger $ size
 
 pVecLit :: Parser A.Expr
 pVecLit =
     do L.reservedOp "["
        numbers <- sepBy L.integer (L.reservedOp ",")
        L.reservedOp "]"
-       return $ A.VecLit numbers
+       return . A.VecLit $ map fromInteger numbers
 
 ifStmt :: Parser A.Expr
 ifStmt =
@@ -87,7 +87,7 @@ aTerm =  L.parens aExpression
      <|> try declStmt
      <|> try ifStmt
      <|> liftM A.VarE L.identifier
-     <|> liftM A.Lit L.integer
+     <|> liftM (A.Lit . fromInteger) L.integer
 
 
 

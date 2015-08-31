@@ -94,8 +94,8 @@ createVar :: AST.Var -> AST.Type -> AST.Expr -> GeneratorState ()
 createVar nm tp expr = do
     let size = case tp of
             AST.Scalar -> 1
-            AST.Vector a -> a
-    addr <- getAvailableAddr . fromInteger $ size
+            AST.Vector a -> fromInteger . toInteger $ a :: Int
+    addr <- getAvailableAddr size
     processExpr expr
     pushVarInfo  $ VarInfo nm addr
     pushASMInstr $ ASM.Store addr

@@ -1,11 +1,12 @@
 module Parser.AST where
 
 import Data.Default
+import Data.Int      (Int16)
 
 type Module = [Expr]
 
-data Expr = Lit Integer
-          | VecLit [Integer]
+data Expr = Lit Int16
+          | VecLit [Int16]
           | VarE Var
           | BinOp Op Expr Expr
           | If Expr [Expr] [Expr]
@@ -14,7 +15,7 @@ data Expr = Lit Integer
           deriving (Show, Eq, Ord)
 
 type Var = String
-data Type = Scalar | Vector Integer deriving (Show, Eq, Ord)
+data Type = Scalar | Vector Int16 deriving (Show, Eq, Ord)
 
 
 data Op = Add Type | Sub Type | Mul Type | Div Type deriving (Show, Eq, Ord)
