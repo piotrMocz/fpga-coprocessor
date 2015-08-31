@@ -52,7 +52,7 @@ typeCheck (BinOp op expr1 expr2) = do
     if t1 /= t2
       then throwE . TypecheckerError $ show t1 <> "and" <> show t2 <> "differ."
       else case op of
-              Mul _ -> return (BinOp (Mul Scalar) e1 e2 )
+              Mul _ -> return (BinOp (Mul t1) e1 e2 )
               Add x -> return (BinOp (Add t1) e1 e2 )
               Sub x -> return (BinOp (Sub t1) e1 e2 )
               Div x -> return (BinOp (Div t1) e1 e2 )
