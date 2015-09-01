@@ -11,6 +11,7 @@ import           Data.Map                   (Map)
 
 
 import           CodeGen.ASM2               as ASM
+import           CodeGen.Vectors            as V
 import qualified Parser.AST                 as AST
 
 
@@ -58,7 +59,7 @@ processAST ast = mapM_ processExpr ast
 
 processExpr :: AST.Expr -> GeneratorState ()
 processExpr expr = case expr of
-    AST.Lit i           -> pushV [fromIntegral i      :: Int  ] -- TODO change integers to ints
+    AST.Lit i           -> push  (fromIntegral i      :: Int  ) -- TODO change integers to ints
     AST.VecLit is       -> pushV (map fromIntegral is :: [Int])
     AST.VarE var        -> lookupVar var
     AST.Decl nm tp expr -> createVar nm tp expr
@@ -90,14 +91,14 @@ processOp op = pushASMInstr $ case op of
                    AST.Div _ -> ASM.Div
 
 
-createVar :: AST.Var -> AST.Type -> AST.Expr -> GeneratorState ()
+createVar :: AST.VarName -> AST.Type -> AST.Expr -> GeneratorState ()
 createVar nm tp expr = do
     let size = case tp of
             AST.Scalar -> 1
             AST.Vector a -> fromInteger . toInteger $ a :: Int
     addr <- getAvailableAddr size
     processExpr expr
-    pushVarInfo  $ VarInfo nm addr
+    pushVarInfo  $ VarInfo nm addr -- isVec
     pushASMInstr $ ASM.Store addr
 
 
@@ -142,12 +143,12 @@ pushVarInfo vInfo = do
     put newSt
 
 
-storeInstr :: AST.Var -> GeneratorState ()
+storeInstr :: AST.VarName -> GeneratorState ()
 storeInstr nm = do
     adr <- lookupAddr nm
     pushASMInstr $ ASM.Store adr
 
-lookupAddr :: AST.Var -> GeneratorState Addr
+lookupAddr :: AST.VarName -> GeneratorState Addr
 lookupAddr nm = do
     st <- get
     let mMap = st ^. symTable
@@ -155,7 +156,7 @@ lookupAddr nm = do
       Nothing -> error "Assigning to non-existing variable"
       Just (VarInfo _ n ) -> return n
 
-lookupVar :: AST.Var -> GeneratorState ()
+lookupVar :: AST.VarName -> GeneratorState ()
 lookupVar var = do
     st <- get
     case Map.lookup var (st ^. symTable) of
@@ -163,10 +164,31 @@ lookupVar var = do
         Just vInfo -> pushASMInstr $ ASM.Load (vInfo ^. varAddr) -- TODO this function can be
                                                                   -- generic with respect to var type
 
+push :: Int -> GeneratorState ()
+push i = pushASMInstr . Push . scalar $ i
+
+
 pushV :: [Int] -> GeneratorState ()
-pushV vs = case ASM.createVVal vs of
-    Nothing   -> throwE $ GeneratorError "Vector value out of range"
-    Just vals -> pushASMInstr $ Push vals
+pushV is = mapM_ (pushASMInstr . Push) chunks
+    where chunks = pack is
+
+
+withLoop :: Int -> [AST.Expr] -> GeneratorState ()
+withLoop reps exprs = do
+    labStart <- ASM.Lab <$> getNextLabel
+    labEnd   <- ASM.Lab <$> getNextLabel
+
+    let (ctrDecl, decr, cond) = AST.loopIf (labEnd ^. ASM.labNum) reps
+
+    processExpr ctrDecl
+    pushASMInstr $ ASM.Label labStart
+    processExpr cond
+    pushASMInstr $ ASM.JumpZ labEnd
+
+    mapM_ processExpr exprs
+
+    processExpr decr
+    pushASMInstr $ ASM.Jump  labStart
 
 
 emptyState = GeneratorData [] [] Map.empty

@@ -11,6 +11,7 @@ library
                   , CodeGen.Generator
                   , CodeGen.LabelRename
                   , CodeGen.Typechecker
+                  , CodeGen.Vectors
                   , Parser.Lexer
                   , Parser.AST
                   , Parser.Parser

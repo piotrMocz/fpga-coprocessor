@@ -3,7 +3,7 @@
 
 module CodeGen.Typechecker where
 
-import           Parser.AST                (Type(..), Var, Expr(..), Op(..))
+import           Parser.AST                (Type(..), VarName, Expr(..), Op(..))
 
 import qualified Data.Map                   as MP
 import           Control.Lens
@@ -14,7 +14,7 @@ import           Control.Monad             (liftM)
 import           Data.Either.Combinators   (fromRight)
 
 
-type TypeMap = MP.Map Var Type
+type TypeMap = MP.Map VarName Type
 
 newtype TypecheckerError = TypecheckerError { _err :: String } deriving (Show, Eq, Ord)
 makeLenses ''TypecheckerError
@@ -99,7 +99,7 @@ infer (If _ t _) = infer . last $ t
 
 
 
-insertNewValue :: Var -> Type -> TypeState ()
+insertNewValue :: VarName -> Type -> TypeState ()
 insertNewValue nm tp = do
     mp <- get
     case MP.lookup nm mp of
@@ -107,7 +107,7 @@ insertNewValue nm tp = do
         Just _ -> throwE . TypecheckerError $ "Variable" <> nm <> "already declared."
 
 
-updateExistingValue :: Var -> Type -> TypeState ()
+updateExistingValue :: VarName -> Type -> TypeState ()
 updateExistingValue nm tp = do
     mp <- get
     case MP.lookup nm mp of

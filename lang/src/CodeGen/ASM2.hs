@@ -1,4 +1,7 @@
-{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE TemplateHaskell           #-}
+
 
 module CodeGen.ASM2 where
 
@@ -7,12 +10,14 @@ import Control.Monad (sequence)
 import Data.Functor  ((<$>))
 import Data.List     (intercalate)
 
+import CodeGen.Vectors
 
-newtype Addr  = Addr  Int    deriving (Show, Eq, Ord)
-newtype SVal  = SVal  Int    deriving (Show, Eq, Ord)
-newtype VVal  = VVal  [SVal] deriving (Show, Eq, Ord)
-newtype Lab   = Lab   Int    deriving (Show, Eq, Ord)
 
+newtype Addr  = Addr  Int              deriving (Show, Eq, Ord)
+newtype SVal  = SVal  Int              deriving (Show, Eq, Ord)
+newtype VVal  = VVal  [SVal]           deriving (Show, Eq, Ord)
+newtype Lab   = Lab { _labNum :: Int } deriving (Show, Eq, Ord)
+makeLenses ''Lab
 
 vMinAddr = 0
 vMaxAddr = 32
@@ -41,14 +46,14 @@ unLabel (Label (Lab i)) = i
 unLabel _               = error "Cannot unlabel a nonlabel"
 
 
-data ASMInstruction = Load    { addr  :: Addr }   -- 0
-                    | Store   { vaddr :: Addr }   -- 1
-                    | Push    { vval  :: VVal }   -- 2
-                    | JumpZ   { tgt   :: Lab  }   -- --
-                    | Jump    { tgt   :: Lab  }   -- --
-                    | Label   { lab   :: Lab  }   -- 3
-                    | JumpIPZ { ipVal :: Int  }   -- 4
-                    | JumpIP  { ipVal :: Int  }   -- 5
+data ASMInstruction = Load    { addr  :: Addr  }   -- 0
+                    | Store   { vaddr :: Addr  }   -- 1
+                    | Push    { val   :: Chunk }   -- 2
+                    | JumpZ   { tgt   :: Lab   }   -- --
+                    | Jump    { tgt   :: Lab   }   -- --
+                    | Label   { lab   :: Lab   }   -- 3
+                    | JumpIPZ { ipVal :: Int   }   -- 4
+                    | JumpIP  { ipVal :: Int   }   -- 5
                     | Add                         -- 6
                     | Sub                         -- 7
                     | Mul                         -- 8
@@ -63,6 +68,12 @@ type ASMCode = [ASMInstruction]
 class MakeASM a where
     makeASM :: a -> String
 
+
+instance MakeASM Int where
+    makeASM = show
+
+instance MakeASM Chunk where
+    makeASM = show
 
 instance MakeASM Addr where
     makeASM (Addr a) = show a
@@ -84,8 +95,8 @@ instance MakeASM ASMInstruction where
     makeASM (JumpZ   tgt ) = "JUMPZ " ++ makeASM tgt
     makeASM (Jump    tgt ) = "JUMP "  ++ makeASM tgt
     makeASM (Label   lab ) = "LAB "   ++ makeASM lab
-    makeASM (JumpIPZ tgt ) = "JUMPZ " ++ show    tgt
-    makeASM (JumpIP  tgt ) = "JUMP "  ++ show    tgt
+    makeASM (JumpIPZ tgt ) = "JUMPZ " ++ makeASM tgt
+    makeASM (JumpIP  tgt ) = "JUMP "  ++ makeASM tgt
     makeASM  Add           = "ADD"
     makeASM  Sub           = "SUB"
     makeASM  Mul           = "MUL"
@@ -96,8 +107,6 @@ instance MakeASM ASMInstruction where
 instance Show ASMInstruction where
     show instr = makeASM instr
 
---instance MakeASM [ASMInstruction] where
---    makeASM instrs = unlines $ fmap show instrs
 
 instance MakeASM a => MakeASM [a] where
     makeASM instrs = unlines $ map makeASM instrs
