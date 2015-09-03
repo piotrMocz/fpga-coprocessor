@@ -13,6 +13,7 @@ data Expr = Lit Int16
           | If Expr [Expr] [Expr]
           | Assign VarName Expr
           | Decl VarName Type Expr
+          | Loop Expr [Expr]
           deriving (Show, Eq, Ord)
 
 

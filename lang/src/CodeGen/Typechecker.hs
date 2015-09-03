@@ -70,7 +70,11 @@ typeCheck (If cond t f) =
               else do
                 c <- typeCheck cond
                 return $ If c e1 e2
-
+typeCheck (Loop a b) =
+  do
+    rep <- typeCheck a
+    body <- mapM typeCheck b
+    return $ Loop rep body
 
 infer :: Expr -> TypeState Type
 infer (Lit _) = return Scalar
@@ -96,7 +100,7 @@ infer (BinOp op expr1 expr2) = do
 
 infer (If _ t _) = infer . last $ t
 
-
+infer (Loop _ _) = throwE . TypecheckerError $ "Loops dont return values, sir."
 
 
 insertNewValue :: VarName -> Type -> TypeState ()

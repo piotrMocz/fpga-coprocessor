@@ -38,7 +38,7 @@ pVecLit :: Parser A.Expr
 pVecLit =
     do L.reservedOp "["
        numbers <- sepBy L.integer (L.reservedOp ",")
-       L.reservedOp "]"
+       L.reserved "]"
        return . A.VecLit $ map fromInteger numbers
 
 ifStmt :: Parser A.Expr
@@ -52,7 +52,16 @@ ifStmt =
      L.reserved "end"
      return $ A.If cond stmt1 stmt2
 
-
+loopStmt :: Parser A.Expr
+loopStmt =
+    do L.reserved "loop"
+       L.reservedOp "("
+       expr <- aExpression
+       L.reserved ")"
+       L.reservedOp ":"
+       stmt <- statement
+       L.reserved "end"
+       return $ A.Loop expr stmt
 
 assignStmt :: Parser A.Expr
 assignStmt =
@@ -86,6 +95,7 @@ aTerm =  L.parens aExpression
      <|> try assignStmt
      <|> try declStmt
      <|> try ifStmt
+     <|> try loopStmt
      <|> liftM A.VarE L.identifier
      <|> liftM (A.Lit . fromInteger) L.integer
 
