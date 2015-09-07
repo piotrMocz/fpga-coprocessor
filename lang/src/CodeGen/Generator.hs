@@ -65,8 +65,14 @@ processExpr expr = case expr of
     AST.Decl nm tp expr -> createVar nm tp expr
     AST.Assign var expr -> processExpr expr *> storeInstr var
     AST.BinOp op l r    -> processExpr l *> processExpr r *> processOp op
-    AST.If cond ts fs   -> processIf cond ts fs
+    AST.If   cond ts fs -> processIf cond ts fs
+    AST.Loop cond body  -> processLoop cond body
     _                   -> throwE $ GeneratorError "Instruction not yet implemented"
+
+
+processLoop :: AST.Expr -> [AST.Expr] -> GeneratorState ()
+processLoop (AST.Lit reps) body = withLoop (fromIntegral reps) body
+processLoop _              _    = throwE $ GeneratorError "Loop counter must be a number."
 
 
 processIf :: AST.Expr -> [AST.Expr] -> [AST.Expr] -> GeneratorState ()
