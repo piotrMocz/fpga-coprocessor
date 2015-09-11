@@ -49,16 +49,22 @@ unLabel _               = error "Cannot unlabel a nonlabel"
 data ASMInstruction = Load    { addr  :: Addr  }   -- 0
                     | Store   { vaddr :: Addr  }   -- 1
                     | Push    { val   :: Chunk }   -- 2
+                    | MovS1                        -- pop from the main stack and push onto the 1st helper stack
+                    | MovS2                        -- as above but the 2nd stack
                     | JumpZ   { tgt   :: Lab   }   -- --
                     | Jump    { tgt   :: Lab   }   -- --
                     | Label   { lab   :: Lab   }   -- 3
                     | JumpIPZ { ipVal :: Int   }   -- 4
                     | JumpIP  { ipVal :: Int   }   -- 5
-                    | Add                         -- 6
-                    | Sub                         -- 7
-                    | Mul                         -- 8
-                    | Div                         -- 9
-                    | Dup                         -- 10
+                    | Add  -- ordinary scalar addition
+                    | Sub
+                    | Mul
+                    | Div
+                    | Dup
+                    | AddS -- add from two helper stacks and push the result onto the main stack
+                    | SubS -- as above, subtract
+                    | MulS -- multiply
+                    | DivS -- divide
                     deriving (Eq, Ord)
 
 
@@ -92,6 +98,8 @@ instance MakeASM ASMInstruction where
     makeASM (Load    addr) = "LD "    ++ makeASM addr
     makeASM (Store   addr) = "ST "    ++ makeASM addr
     makeASM (Push    val ) = "PUSH "  ++ makeASM val
+    makeASM  MovS1         = "MOVS1"
+    makeASM  MovS2         = "MOVS2"
     makeASM (JumpZ   tgt ) = "JUMPZ " ++ makeASM tgt
     makeASM (Jump    tgt ) = "JUMP "  ++ makeASM tgt
     makeASM (Label   lab ) = "LAB "   ++ makeASM lab
@@ -101,6 +109,10 @@ instance MakeASM ASMInstruction where
     makeASM  Sub           = "SUB"
     makeASM  Mul           = "MUL"
     makeASM  Div           = "DIV"
+    makeASM  AddS          = "ADDS"
+    makeASM  SubS          = "SUBS"
+    makeASM  MulS          = "MULS"
+    makeASM  DivS          = "DIVS"
     makeASM  Dup           = "DUP"
 
 
