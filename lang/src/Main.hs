@@ -5,10 +5,17 @@ import Parser.Parser       (parseFile)
 import CodeGen.Generator   (symTable, modAST, asmCode, runASTTranslation, avAddrs)
 import CodeGen.ASM2        (makeASM)
 import CodeGen.LabelRename (renameLabels)
-import CodeGen.Typechecker (runTypechecker)
+import CodeGen.Typechecker (runTypechecker, TypecheckerError, err)
 
 import Text.Show.Pretty  (ppShow)
 import Control.Lens
+import Control.Monad     ((<=<))
+
+
+runCompiler ast = case runTypechecker ast of
+    Right newAst -> runASTTranslation newAst
+    Left  tcerr  -> error $ "Typechecker error:\n    " ++ tcerr ^. err
+
 
 main :: IO ()
 main = do
@@ -18,7 +25,7 @@ main = do
     print "========= Typechecking ========="
     putStrLn . ppShow $ runTypechecker result
     print "=========== ASMGen ============="
-    let genData = runASTTranslation result
+    let genData = runCompiler result
     putStrLn .               show . view symTable $ genData
     putStrLn .               show . view avAddrs  $ genData
     putStrLn . unlines . map show . view asmCode  $ genData

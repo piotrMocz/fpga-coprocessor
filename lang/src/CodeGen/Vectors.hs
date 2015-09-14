@@ -31,3 +31,7 @@ pack' is vs = (packOne is) : vs
 
 pack :: [Int] -> Vector
 pack is = pack' (reverse is) []
+
+
+chunkCnt :: Int -> Int
+chunkCnt x = (x `div` 8) + (if x `mod` 8 == 0 then 0 else 1)

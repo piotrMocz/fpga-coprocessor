@@ -212,7 +212,7 @@ emptyState = GeneratorData [] [] Map.empty
 -- TODO might put a loop here, but this is arguably simpler to process. short vectors, nice vectors.
 unvectorizeOp :: AST.Op -> GeneratorState ()
 unvectorizeOp op = do
-    let len = AST.opLen op
+    let len = V.chunkCnt $ AST.opLen op
     len `times` (pushASMInstr ASM.MovS1)  -- push the first vector
     len `times` (pushASMInstr ASM.MovS2)  -- push the second vector
 
