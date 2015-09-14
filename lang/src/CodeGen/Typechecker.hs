@@ -40,8 +40,8 @@ typeCheck (Assign nm expr) = do
     return $ Assign nm e
 typeCheck (Decl nm tp expr) = do
     e <- typeCheck expr
-    exprTp <- infer expr
-    if tp /= exprTp then throwE . TypecheckerError $ "Variable" <> nm <> "already declared."
+    exprTp <- infer e
+    if tp /= exprTp then throwE . TypecheckerError $ "Wrong type of " <> nm <> "."
                 else do {insertNewValue nm tp; return $ Decl nm tp e}
 
 typeCheck (BinOp op expr1 expr2) = do
