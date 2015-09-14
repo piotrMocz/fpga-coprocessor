@@ -72,8 +72,7 @@ processExpr expr = case expr of
 
 
 processLoop :: AST.Expr -> [AST.Expr] -> GeneratorState ()
-processLoop (AST.Lit reps) body = withLoop (fromIntegral reps) body
-processLoop _              _    = throwE $ GeneratorError "Loop counter must be a number."
+processLoop cond body = withLoop cond body
 
 
 processIf :: AST.Expr -> [AST.Expr] -> [AST.Expr] -> GeneratorState ()
@@ -182,22 +181,28 @@ pushV is = mapM_ (pushASMInstr . Push) chunks
     where chunks = pack is
 
 
-withLoop :: Int -> [AST.Expr] -> GeneratorState ()
-withLoop reps exprs = do
+
+withLoopInt :: Int -> [AST.Expr] -> GeneratorState ()
+withLoopInt reps = withLoop (AST.Lit $ fromIntegral reps)
+
+
+withLoop :: AST.Expr -> [AST.Expr] -> GeneratorState ()
+withLoop cond exprs = do
     labStart <- ASM.Lab <$> getNextLabel
     labEnd   <- ASM.Lab <$> getNextLabel
 
-    let (ctrDecl, decr, cond) = AST.loopIf (labEnd ^. ASM.labNum) reps
+    let (lctrDecl, ldecr, lcond) = AST.loopIf (labEnd ^. ASM.labNum) cond
 
-    processExpr ctrDecl
+    processExpr lctrDecl
     pushASMInstr $ ASM.Label labStart
-    processExpr cond
+    processExpr lcond
     pushASMInstr $ ASM.JumpZ labEnd
 
     mapM_ processExpr exprs
 
-    processExpr decr
+    processExpr ldecr
     pushASMInstr $ ASM.Jump  labStart
+    pushASMInstr $ ASM.Label labEnd
 
 
 emptyState = GeneratorData [] [] Map.empty

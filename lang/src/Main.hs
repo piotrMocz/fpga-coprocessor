@@ -19,14 +19,10 @@ main = do
     putStrLn . ppShow $ runTypechecker result
     print "=========== ASMGen ============="
     let genData = runASTTranslation result
-    putStrLn . show $ genData ^. symTable
-    putStrLn . show $ genData ^. avAddrs
-    putStrLn . show $ genData ^. asmCode
+    putStrLn .               show . view symTable $ genData
+    putStrLn .               show . view avAddrs  $ genData
+    putStrLn . unlines . map show . view asmCode  $ genData
 
-    	-- asm   = genData ^. asmCode
-      --   code1 = makeASM asm
-      --   asm2  = renameLabels asm
-      --   code2 = makeASM asm2
     -- print "=========== ASM generation ============="
     -- putStrLn code1
     -- print "=========== Label renaming ============="

@@ -29,9 +29,9 @@ instance Default Type where
 
 
 ------- UTILS --------
-loopIf :: Int -> Int -> (Expr, Expr, Expr)
-loopIf lab reps =
-    ( Decl varName Scalar (Lit . fromIntegral $ reps + 1)        -- counter
+loopIf :: Int -> Expr -> (Expr, Expr, Expr)
+loopIf lab cond =
+    ( Decl varName Scalar cond                                   -- loop's stopping condition
     , Assign varName (BinOp (Sub Scalar) (VarE varName) (Lit 1)) -- decrement counter
     , VarE varName                                               -- evaluate counter
     ) where varName = "counter" ++ show lab
