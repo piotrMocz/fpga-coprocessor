@@ -46,8 +46,8 @@ unLabel (Label (Lab i)) = i
 unLabel _               = error "Cannot unlabel a nonlabel"
 
 
-data ASMInstruction = Load    { addr  :: Addr  }   -- 0
-                    | Store   { vaddr :: Addr  }   -- 1
+data ASMInstruction = Load    { addr  :: Addr  , size :: Int }   -- 0
+                    | Store   { vaddr :: Addr  , size :: Int }   -- 1
                     | Push    { val   :: Chunk }   -- 2
                     | MovS1                        -- pop from the main stack and push onto the 1st helper stack
                     | MovS2                        -- as above but the 2nd stack
@@ -95,25 +95,25 @@ instance MakeASM Lab where
 
 
 instance MakeASM ASMInstruction where
-    makeASM (Load    addr) = "LD "    ++ makeASM addr
-    makeASM (Store   addr) = "ST "    ++ makeASM addr
-    makeASM (Push    val ) = "PUSH "  ++ makeASM val
-    makeASM  MovS1         = "MOVS1"
-    makeASM  MovS2         = "MOVS2"
-    makeASM (JumpZ   tgt ) = "JUMPZ " ++ makeASM tgt
-    makeASM (Jump    tgt ) = "JUMP "  ++ makeASM tgt
-    makeASM (Label   lab ) = "LAB "   ++ makeASM lab
-    makeASM (JumpIPZ tgt ) = "JUMPZ " ++ makeASM tgt
-    makeASM (JumpIP  tgt ) = "JUMP "  ++ makeASM tgt
-    makeASM  Add           = "ADD"
-    makeASM  Sub           = "SUB"
-    makeASM  Mul           = "MUL"
-    makeASM  Div           = "DIV"
-    makeASM  AddS          = "ADDS"
-    makeASM  SubS          = "SUBS"
-    makeASM  MulS          = "MULS"
-    makeASM  DivS          = "DIVS"
-    makeASM  Dup           = "DUP"
+    makeASM (Load    addr size) = "LD "    ++ makeASM addr ++ " size " ++ (show size)
+    makeASM (Store   addr size) = "ST "    ++ makeASM addr ++ " size " ++ (show size)
+    makeASM (Push    val      ) = "PUSH "  ++ makeASM val
+    makeASM  MovS1              = "MOVS1"
+    makeASM  MovS2              = "MOVS2"
+    makeASM (JumpZ   tgt      ) = "JUMPZ " ++ makeASM tgt
+    makeASM (Jump    tgt      ) = "JUMP "  ++ makeASM tgt
+    makeASM (Label   lab      ) = "LAB "   ++ makeASM lab
+    makeASM (JumpIPZ tgt      ) = "JUMPZ " ++ makeASM tgt
+    makeASM (JumpIP  tgt      ) = "JUMP "  ++ makeASM tgt
+    makeASM  Add                = "ADD"
+    makeASM  Sub                = "SUB"
+    makeASM  Mul                = "MUL"
+    makeASM  Div                = "DIV"
+    makeASM  AddS               = "ADDS"
+    makeASM  SubS               = "SUBS"
+    makeASM  MulS               = "MULS"
+    makeASM  DivS               = "DIVS"
+    makeASM  Dup                = "DUP"
 
 
 instance Show ASMInstruction where

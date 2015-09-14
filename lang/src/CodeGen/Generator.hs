@@ -99,13 +99,11 @@ processOp op = pushASMInstr $ case op of
 
 createVar :: AST.VarName -> AST.Type -> AST.Expr -> GeneratorState ()
 createVar nm tp expr = do
-    let size = case tp of
-            AST.Scalar -> 1
-            AST.Vector a -> fromIntegral a :: Int
+    let size = typeSize tp
     addr <- getAvailableAddr size
     processExpr expr
     pushVarInfo  $ VarInfo nm addr size
-    pushASMInstr $ ASM.Store addr
+    pushASMInstr $ ASM.Store addr size
 
 
 --------------------------------------------------------------
@@ -152,7 +150,8 @@ pushVarInfo vInfo = do
 storeInstr :: AST.VarName -> GeneratorState ()
 storeInstr nm = do
     adr <- lookupAddr nm
-    pushASMInstr $ ASM.Store adr
+    len <- lookupLen nm
+    pushASMInstr $ ASM.Store adr len
 
 
 lookupAddr :: AST.VarName -> GeneratorState Addr
@@ -164,12 +163,20 @@ lookupAddr nm = do
       Just (VarInfo _ n _) -> return n
 
 
+lookupLen :: AST.VarName -> GeneratorState Int
+lookupLen nm = do
+    st <- get
+    let mMap = st ^. symTable
+    case Map.lookup nm mMap of
+      Nothing -> error "Assigning to non-existing variable"
+      Just (VarInfo _ _ l) -> return l
+
 lookupVar :: AST.VarName -> GeneratorState ()
 lookupVar var = do
     st <- get
     case Map.lookup var (st ^. symTable) of
         Nothing    -> throwE . GeneratorError $ "Using undeclared variable name: " ++ var
-        Just vInfo -> pushASMInstr $ ASM.Load (vInfo ^. varAddr) -- TODO this function can be
+        Just vInfo -> pushASMInstr $ ASM.Load (vInfo ^. varAddr) (vInfo ^. varLen) -- TODO this function can be
                                                                   -- generic with respect to var type
 
 push :: Int -> GeneratorState ()
@@ -217,6 +224,10 @@ unvectorizeOp op = do
     len `times` (pushASMInstr ASM.MovS2)  -- push the second vector
 
     len `times` (pushASMInstr $ getTwoStackOp op)
+    case op of
+      AST.Mul _ -> (len - 1) `times` (pushASMInstr ASM.Add)
+      _ -> return ()
+
 
 
 getTwoStackOp :: AST.Op -> ASM.ASMInstruction
@@ -229,3 +240,7 @@ getTwoStackOp (AST.Div _) = ASM.DivS
 -- repeat n times:
 -- friggin ruby in haskell dude
 times = replicateM_
+
+typeSize :: AST.Type -> Int
+typeSize AST.Scalar = 1
+typeSize (AST.Vector n) = fromIntegral n
