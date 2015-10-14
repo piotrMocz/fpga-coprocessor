@@ -74,12 +74,27 @@ port (
 );
 end component;
 
-type fsm_state_t is (idle, received, emitting);
+
+component ALU is
+port (
+    clk        : in  std_logic;
+	 inp1_data  : in  std_logic_vector(7 downto 0);
+	 inp2_data  : in  std_logic_vector(7 downto 0);
+	 -- enable     : in  std_logic;
+	 outp       : out std_logic_vector(7 downto 0)
+  );
+end component;
+
+
+type fsm_state_t is (idle, received1, received2, added, emitting);
 type state_t is
 record
-  fsm_state: fsm_state_t; -- FSM state
-  tx_data: std_logic_vector(7 downto 0);
-  tx_enable: std_logic;
+  fsm_state : fsm_state_t; -- FSM state
+  liczba1   : std_logic_vector(7 downto 0);
+  liczba2   : std_logic_vector(7 downto 0);
+  wynik     : std_logic_vector(7 downto 0);
+  tx_data   : std_logic_vector(7 downto 0);
+  tx_enable : std_logic;
 end record;
 
 signal reset: std_logic;
@@ -91,6 +106,10 @@ signal uart_tx_enable: std_logic;
 signal uart_tx_ready: std_logic;
 
 signal state,state_next: state_t;
+
+signal alu_inp1   : std_logic_vector( 7 downto 0);
+signal alu_inp2   : std_logic_vector( 7 downto 0);
+signal alu_outp   : std_logic_vector( 7 downto 0);
 
 begin
 
@@ -104,6 +123,14 @@ begin
     tx_data => uart_tx_data, tx_enable => uart_tx_enable, tx_ready => uart_tx_ready,
     rx => GPIO(11),
     tx => GPIO( 9)
+  );
+  
+  ALU_inst : ALU
+  port map (
+    clk       => CLOCK_50,
+	 inp1_data => alu_inp1,
+	 inp2_data => alu_inp2,
+	 outp      => alu_outp
   );
 
   reset_control: process (reset_btn) is
@@ -122,8 +149,11 @@ begin
   begin
     if reset = '1' then
       state.fsm_state <= idle;
-      state.tx_data <= (others => '0');
       state.tx_enable <= '0';
+		state.tx_data   <= (others => '0');
+		state.liczba1   <= (others => '0');
+		state.liczba2   <= (others => '0');
+		state.wynik     <= (others => '0');
     else
       if rising_edge(CLOCK_50) then
         state <= state_next;
@@ -138,12 +168,25 @@ begin
     
     when idle =>
       if uart_rx_enable = '1' then
-        state_next.tx_data <= uart_rx_data;
+		  state_next.liczba1   <= uart_rx_data;
         state_next.tx_enable <= '0';
-        state_next.fsm_state <= received;
+        state_next.fsm_state <= received1;
       end if;
       
-    when received =>
+    when received1 =>
+      if uart_rx_enable = '1' then
+        state_next.tx_enable <= '0';
+		  state_next.liczba2   <= uart_rx_data;
+        state_next.fsm_state <= received2;
+      end if;
+		
+	 when received2 =>
+	   state_next.tx_enable <= '0';
+	   state_next.tx_data   <= state.liczba1 + state.liczba2;
+	   state_next.fsm_state <= added;	
+		state_next.wynik     <= state.liczba1 + state.liczba2;
+		
+	 when added =>
       if uart_tx_ready = '1' then
         state_next.tx_enable <= '1';
         state_next.fsm_state <= emitting;
@@ -162,9 +205,11 @@ begin
   begin
   
     uart_tx_enable <= state.tx_enable;
-    uart_tx_data <= state.tx_data;
-    led <= state.tx_data;
-    
+    uart_tx_data   <= state.tx_data;
+    -- led <= state.tx_data;
+	 LED(3 downto 0) <= state.liczba1(3 downto 0);
+	 LED(7 downto 4) <= state.liczba2(3 downto 0);
+	 
   end process;
 
 end arch;
