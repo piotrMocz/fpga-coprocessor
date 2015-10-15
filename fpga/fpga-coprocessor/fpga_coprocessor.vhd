@@ -85,6 +85,19 @@ port (
   );
 end component;
 
+component stack is
+port (
+   clk       : in  std_logic;
+	enable    : in  std_logic;
+	rst       : in  std_logic;
+	empty     : out std_logic;
+	full      : out std_logic;
+	command   : in  std_logic;
+	push_data : in  std_logic_vector(7 downto 0);
+	pop_data  : out std_logic_vector(7 downto 0)
+   );
+end component;
+
 
 type fsm_state_t is (idle, received1, received2, added, emitting);
 type state_t is
@@ -111,6 +124,14 @@ signal alu_inp1   : std_logic_vector( 7 downto 0);
 signal alu_inp2   : std_logic_vector( 7 downto 0);
 signal alu_outp   : std_logic_vector( 7 downto 0);
 
+signal stack_enable  : std_logic;
+signal stack_rst     : std_logic;
+signal stack_full    : std_logic;
+signal stack_empty   : std_logic;
+signal stack_command : std_logic;
+signal stack_popd    : std_logic_vector(7 downto 0);
+signal stack_pushd   : std_logic_vector(7 downto 0);
+
 begin
 
   reset_btn <= KEY(0);
@@ -132,7 +153,20 @@ begin
 	 inp2_data => alu_inp2,
 	 outp      => alu_outp
   );
-
+  
+  stack_inst : stack
+  port map (
+   clk       => CLOCK_50,
+	enable    => stack_empty,
+	rst       => stack_rst,
+	empty     => stack_empty,
+	full      => stack_full,
+	command   => stack_command, -- 0 -> push, 1 -> pop
+	push_data => stack_pushd,
+	pop_data  => stack_popd
+   );
+  
+  
   reset_control: process (reset_btn) is
   begin
     if reset_btn = '1' then
