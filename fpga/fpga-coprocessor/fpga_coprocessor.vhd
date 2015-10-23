@@ -103,8 +103,6 @@ type fsm_state_t is (idle, received1, received2, added, emitting);
 type state_t is
 record
   fsm_state : fsm_state_t; -- FSM state
-  liczba1   : std_logic_vector(7 downto 0);
-  liczba2   : std_logic_vector(7 downto 0);
   wynik     : std_logic_vector(7 downto 0);
   tx_data   : std_logic_vector(7 downto 0);
   tx_enable : std_logic;
@@ -131,6 +129,9 @@ signal stack_empty   : std_logic;
 signal stack_command : std_logic;
 signal stack_popd    : std_logic_vector(7 downto 0);
 signal stack_pushd   : std_logic_vector(7 downto 0);
+
+signal num1 : std_logic_vector(7 downto 0);
+signal num2 : std_logic_vector(7 downto 0);
 
 begin
 
@@ -185,8 +186,6 @@ begin
       state.fsm_state <= idle;
       state.tx_enable <= '0';
 		state.tx_data   <= (others => '0');
-		state.liczba1   <= (others => '0');
-		state.liczba2   <= (others => '0');
 		state.wynik     <= (others => '0');
     else
       if rising_edge(CLOCK_50) then
@@ -195,31 +194,34 @@ begin
     end if;
   end process;
 
-  fsm_next: process (state,uart_rx_enable,uart_rx_data,uart_tx_ready) is
+  fsm_next: process (CLOCK_50) is
   begin
+    if rising_edge(CLOCK_50) then
+  
     state_next <= state;
     case state.fsm_state is
     
     when idle =>
       if uart_rx_enable = '1' then
-		  state_next.liczba1   <= uart_rx_data;
-        state_next.tx_enable <= '0';
+		  state_next.tx_enable <= '0';
+        num1                 <= uart_rx_data;
         state_next.fsm_state <= received1;
       end if;
       
     when received1 =>
       if uart_rx_enable = '1' then
         state_next.tx_enable <= '0';
-		  state_next.liczba2   <= uart_rx_data;
+		  num2                 <= uart_rx_data;
         state_next.fsm_state <= received2;
       end if;
 		
 	 when received2 =>
 	   state_next.tx_enable <= '0';
-	   state_next.tx_data   <= state.liczba1 + state.liczba2;
+	   state_next.tx_data   <= num1 + num2; --state.liczba1 + state.liczba2;
 	   state_next.fsm_state <= added;	
-		state_next.wynik     <= state.liczba1 + state.liczba2;
+		state_next.wynik     <= num1 + num2; -- state.liczba1 + state.liczba2;
 		
+		stack_enable <= '0';
 	 when added =>
       if uart_tx_ready = '1' then
         state_next.tx_enable <= '1';
@@ -233,17 +235,21 @@ begin
       end if;
       
     end case;
+	 
+	 end if;
   end process;
   
-  fsm_output: process (state) is
+  fsm_output: process (CLOCK_50) is
   begin
+    if rising_edge(CLOCK_50) then
   
     uart_tx_enable <= state.tx_enable;
     uart_tx_data   <= state.tx_data;
     -- led <= state.tx_data;
-	 LED(3 downto 0) <= state.liczba1(3 downto 0);
-	 LED(7 downto 4) <= state.liczba2(3 downto 0);
-	 
+	 LED(3 downto 0) <= num1(3 downto 0);
+	 LED(7 downto 4) <= num2(3 downto 0);
+
+    end if;	 
   end process;
 
 end arch;
