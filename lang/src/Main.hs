@@ -6,6 +6,7 @@ import CodeGen.Generator   (symTable, modAST, asmCode, runASTTranslation, avAddr
 import CodeGen.ASM2        (makeASM)
 import CodeGen.LabelRename (renameLabels)
 import CodeGen.Typechecker (runTypechecker, TypecheckerError, err)
+import CodeGen.Binary      (genBinary)
 
 import Text.Show.Pretty  (ppShow)
 import Control.Lens
@@ -26,10 +27,10 @@ main = do
     putStrLn . ppShow $ runTypechecker result
     print "=========== ASMGen ============="
     let genData = runCompiler result
-    putStrLn .               show . view symTable $ genData
-    putStrLn .               show . view avAddrs  $ genData
+    -- putStrLn .               show . view symTable $ genData
+    -- putStrLn .               show . view avAddrs  $ genData
     putStrLn . unlines . map show . view asmCode  $ genData
-
+    genBinary "binarka" (view asmCode $ genData)
     -- print "=========== ASM generation ============="
     -- putStrLn code1
     -- print "=========== Label renaming ============="
