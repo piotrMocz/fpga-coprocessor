@@ -132,6 +132,7 @@ signal stack_pushd   : std_logic_vector(7 downto 0);
 
 signal num1 : std_logic_vector(7 downto 0);
 signal num2 : std_logic_vector(7 downto 0);
+signal num3 : std_logic_vector(7 downto 0);
 
 begin
 
@@ -158,7 +159,7 @@ begin
   stack_inst : stack
   port map (
    clk       => CLOCK_50,
-	enable    => stack_empty,
+	enable    => stack_enable,
 	rst       => stack_rst,
 	empty     => stack_empty,
 	full      => stack_full,
@@ -206,6 +207,10 @@ begin
 		  state_next.tx_enable <= '0';
         num1                 <= uart_rx_data;
         state_next.fsm_state <= received1;
+		  
+		  stack_enable  <= '1';
+		  stack_command <= '0'; -- push
+		  stack_pushd   <= uart_rx_data;
       end if;
       
     when received1 =>
@@ -213,13 +218,17 @@ begin
         state_next.tx_enable <= '0';
 		  num2                 <= uart_rx_data;
         state_next.fsm_state <= received2;
+		  
+		  stack_enable  <= '1';
+		  stack_command <= '1'; -- pop
+		  -- num2          <= stack_popd;
       end if;
 		
 	 when received2 =>
 	   state_next.tx_enable <= '0';
-	   state_next.tx_data   <= num1 + num2; --state.liczba1 + state.liczba2;
+	   state_next.tx_data   <= stack_popd; --state.liczba1 + state.liczba2;
 	   state_next.fsm_state <= added;	
-		state_next.wynik     <= num1 + num2; -- state.liczba1 + state.liczba2;
+		state_next.wynik     <= "00000000"; -- state.liczba1 + state.liczba2;
 		
 		stack_enable <= '0';
 	 when added =>
