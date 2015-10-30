@@ -1,3 +1,5 @@
+2 + 2
+{#
 a:Int = 3
 b:IntVector[2] = [1,2]
 loop(a):
@@ -17,3 +19,4 @@ if a * 2 then
 else
      a
 end
+#}

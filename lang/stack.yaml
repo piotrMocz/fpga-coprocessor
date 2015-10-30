@@ -3,4 +3,3 @@ packages:
 - '.'
 extra-deps: []
 resolver: lts-3.5
-local-bin-path: "."
