@@ -31,12 +31,7 @@ int main()
 
 	// transmit some bytes: -------------------------
 
-        unsigned char tosend[32];
-        tosend[0] = 45;
-        tosend[1] = 46;
-        tosend[2] = 47;
-        tosend[3] = 255;
-        tosend[4] = 0;
+        unsigned char tosend[32] = {2, 0, 0, 0, 0, 0, 0, 0, 1, 18, 255, 0};
 	//int cnt = write(uart0_filestream, tx_buffer, p_tx_buffer - tx_buffer); 
 	int cnt = write(uart0_filestream, tosend, 32);
         printf("Wyslano: %s\n", tosend); 
