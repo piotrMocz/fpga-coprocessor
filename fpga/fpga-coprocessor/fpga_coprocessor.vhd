@@ -130,6 +130,7 @@ component instr_mem is
 port (
    clk           : in  std_logic;
 	read_addr     : in  integer range 0 to 63;
+	write_addr    : in  integer range 0 to 63;
 	we            : in  std_logic;
 	
 	instr_mem_in  : in  std_logic_vector(7 downto 0);
@@ -193,6 +194,7 @@ signal mem_we               : std_logic;
 signal instr_mem_in         : std_logic_vector(7 downto 0);
 signal instr_mem_out        : std_logic_vector(7 downto 0);
 signal instr_mem_read_addr  : integer range 0 to 63 := 0;
+signal instr_mem_write_addr : integer range 0 to 63 := 0;
 signal instr_mem_we         : std_logic;
 
 begin
@@ -273,7 +275,8 @@ begin
 	instr_mem_inst : instr_mem
    port map (
       clk        => CLOCK_50,
-   	read_addr  => instr_mem_read_addr, 
+   	read_addr  => instr_mem_read_addr,
+		write_addr => instr_mem_write_addr,
    	we         => instr_mem_we, 
    	
    	instr_mem_in     => instr_mem_in, 
@@ -326,6 +329,7 @@ begin
 			
 		when push_instr =>
 		   instr_mem_we         <= '0';
+			instr_mem_write_addr <= instr_mem_write_addr + 1;
 		   state_next.fsm_state <= idle;
 			
 		when instr_push_finished =>
@@ -337,7 +341,7 @@ begin
  		   state_next.fsm_state <= reading;
  	
  		   instr_mem_we         <= '0';
-			instr_mem_read_addr  <= 0;
+			instr_mem_read_addr  <= 1;
  		   
  	   when reading =>
  	      state_next.tx_enable <= '0';
