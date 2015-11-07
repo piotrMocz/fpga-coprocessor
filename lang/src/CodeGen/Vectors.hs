@@ -1,8 +1,10 @@
+{-# LANGUAGE TemplateHaskell           #-}
 module CodeGen.Vectors where
 
 import Control.Lens
 
 data Chunk  = Chunk { _len :: Int, _body :: (Int, Int, Int, Int, Int, Int, Int, Int) } deriving (Show, Eq, Ord)
+makeLenses ''Chunk
 type Vector = [Chunk]
 
 zero :: Chunk

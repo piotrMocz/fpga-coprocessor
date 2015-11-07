@@ -2,8 +2,8 @@ module Main where
 
 
 import Parser.Parser       (parseFile)
-import CodeGen.Generator   (symTable, modAST, asmCode, runASTTranslation, avAddrs)
-import CodeGen.ASM2        (makeASM)
+import CodeGen.Generator   (symTable, modAST, asmCode, runASTTranslation, avAddrs, constData)
+import CodeGen.ASM         (makeASM)
 import CodeGen.LabelRename (renameLabels)
 import CodeGen.Typechecker (runTypechecker, TypecheckerError, err)
 import CodeGen.Binary      (genBinary)
@@ -29,7 +29,8 @@ main = do
     let genData = runCompiler result
     -- putStrLn .               show . view symTable $ genData
     -- putStrLn .               show . view avAddrs  $ genData
-    putStrLn . unlines . map show . view asmCode  $ genData
+    putStrLn . unlines . map show . view asmCode   $ genData
+    putStrLn . unlines . map show . view constData $ genData
     genBinary "binarka" (view asmCode $ genData)
     -- print "=========== ASM generation ============="
     -- putStrLn code1

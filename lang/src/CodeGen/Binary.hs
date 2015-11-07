@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module CodeGen.Binary where
 
-import           CodeGen.ASM2
+import           CodeGen.ASM
 import           Data.Binary     (Binary, put, get, encodeFile)
 import           Data.Word       (Word8)
 import           Control.Monad   ((>>))

@@ -7,7 +7,6 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:  CodeGen.ASM
-                  , CodeGen.ASM2
                   , CodeGen.Binary
                   , CodeGen.Generator
                   , CodeGen.LabelRename

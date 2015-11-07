@@ -5,8 +5,8 @@ module CodeGen.LabelRename where
 
 import Control.Lens
 
-import qualified CodeGen.ASM2      as ASM
-import           CodeGen.ASM2      (MakeASM, makeASM, Lab(Lab), ASMInstruction(..), ASMCode)
+import qualified CodeGen.ASM       as ASM
+import           CodeGen.ASM       (MakeASM, makeASM, Lab(Lab), ASMInstruction(..), ASMCode)
 import           CodeGen.Generator (GeneratorData)
 import qualified CodeGen.Generator as Gen
 

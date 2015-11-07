@@ -11,7 +11,7 @@ import qualified Data.Map                   as Map
 import           Data.Map                   (Map)
 
 
-import           CodeGen.ASM2               as ASM
+import           CodeGen.ASM                as ASM
 import           CodeGen.Vectors            as V
 import qualified Parser.AST                 as AST
 
@@ -30,11 +30,12 @@ makeLenses ''VarInfo
 
 
 data GeneratorData = GeneratorData {
-                     _asmCode  :: ASM.ASMCode
-                   , _modAST   :: AST.Module
-                   , _symTable :: SymTable
-                   , _avAddrs  :: [Addr]
-                   , _avLab    :: Int
+                     _asmCode   :: ASM.ASMCode
+                   , _constData :: ASM.ConstStorage
+                   , _modAST    :: AST.Module
+                   , _symTable  :: SymTable
+                   , _avAddrs   :: [Addr]
+                   , _avLab     :: Int
                    } deriving (Show, Eq, Ord)
 
 makeLenses ''GeneratorData
@@ -180,14 +181,46 @@ lookupVar var = do
                                                                   -- generic with respect to var type
 
 push :: Int -> GeneratorState ()
-push i = pushASMInstr . Push . scalar $ i
+push i = do
+  ptr <- nextAdress
+  addScalarToStorage i
+  pushASMInstr . Push $ ptr
 
 
 pushV :: [Int] -> GeneratorState ()
-pushV is = mapM_ (pushASMInstr . Push) chunks
+pushV is = mapM_ prepareChunk chunks
     where chunks = pack is
 
+prepareChunk :: Chunk -> GeneratorState ()
+prepareChunk ck = do
+  ptr <- nextAdress
+  addVectorToStorage ck
+  pushASMInstr . Push $ ptr
 
+addScalarToStorage :: Int -> GeneratorState ()
+addScalarToStorage i = do
+    gD <- get
+    let newData = gD & constData %~ (++ [ASM.ConstScalar i])
+    put newData
+
+
+addVectorToStorage :: Chunk -> GeneratorState ()
+addVectorToStorage ck = do
+    gD <- get
+    let newData = gD & constData %~ (++ [ASM.ConstVector (ck ^. body)])
+    put newData
+
+
+nextAdress :: GeneratorState ASM.Addr
+nextAdress = do
+  st <- get
+  let nVec    = length $ filter (not . isScalar) (st ^. constData)
+      nScalar = length $ filter isScalar (st ^. constData)
+  return . Addr $ 8*nVec + nScalar + 1
+
+isScalar :: ASM.ConstData -> Bool
+isScalar (ASM.ConstScalar _) = True
+isScalar _ = False
 
 withLoopInt :: Int -> [AST.Expr] -> GeneratorState ()
 withLoopInt reps = withLoop (AST.Lit $ fromIntegral reps)
@@ -212,7 +245,7 @@ withLoop cond exprs = do
     pushASMInstr $ ASM.Label labEnd
 
 
-emptyState = GeneratorData [] [] Map.empty
+emptyState = GeneratorData [] [] [] Map.empty
 
 
 -- translate a vectorized binop into a sequence of instructions, operating on 3 stacks
