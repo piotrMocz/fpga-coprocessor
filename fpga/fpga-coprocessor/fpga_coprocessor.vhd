@@ -109,25 +109,36 @@ port (
 	push_data   : in  std_logic_vector(7  downto 0);
 	pop_data    : out std_logic_vector(7  downto 0);
 	
-	instr_ready : out std_logic;
 	vec_ready   : out std_logic;
 	output      : out std_logic_vector(63 downto 0)
 );
 end component;
 
-component const_mem is
+component mem is
 port (
    clk        : in  std_logic;
 	write_addr : in  std_logic_vector(3 downto 0); -- integer range 0 to 15;
 	read_addr  : in  std_logic_vector(3 downto 0); -- integer range 0 to 15;
 	we         : in  std_logic;
 	
-	cmem_in    : in  std_logic_vector(63 downto 0);
-	cmem_out   : out std_logic_vector(63 downto 0)
+	mem_in     : in  std_logic_vector(63 downto 0);
+	mem_out    : out std_logic_vector(63 downto 0)
 );
 end component;
 
-type fsm_state_t is (idle, received, push_val, push_finished, reading, readval, emitting); --, received2, reading2, readval2, emitting2);
+component instr_mem is
+port (
+   clk           : in  std_logic;
+	read_addr     : in  integer range 0 to 63;
+	we            : in  std_logic;
+	
+	instr_mem_in  : in  std_logic_vector(7 downto 0);
+	instr_mem_out : out std_logic_vector(7 downto 0)
+);
+end component;
+
+
+type fsm_state_t is (idle, received, push_instr, instr_push_finished, reading, readval, emitting); --, received2, reading2, readval2, emitting2);
 type state_t is
 record
   fsm_state : fsm_state_t; -- FSM state
@@ -135,44 +146,54 @@ record
   tx_enable : std_logic;
 end record;
 
-signal reset          : std_logic;
-signal reset_btn      : std_logic;
-signal uart_rx_data   : std_logic_vector(7 downto 0);
-signal uart_rx_enable : std_logic;
-signal uart_tx_data   : std_logic_vector(7 downto 0);
-signal uart_tx_enable : std_logic;
-signal uart_tx_ready  : std_logic;
+signal reset                : std_logic;
+signal reset_btn            : std_logic;
+signal uart_rx_data         : std_logic_vector(7 downto 0);
+signal uart_rx_enable       : std_logic;
+signal uart_tx_data         : std_logic_vector(7 downto 0);
+signal uart_tx_enable       : std_logic;
+signal uart_tx_ready        : std_logic;
 
-signal state,state_next : state_t;
+signal state,state_next     : state_t;
 
-signal alu_inp1   : std_logic_vector( 7 downto 0);
-signal alu_inp2   : std_logic_vector( 7 downto 0);
-signal alu_outp   : std_logic_vector( 7 downto 0);
+signal alu_inp1             : std_logic_vector( 7 downto 0);
+signal alu_inp2             : std_logic_vector( 7 downto 0);
+signal alu_outp             : std_logic_vector( 7 downto 0);
 
-signal stack_enable  : std_logic;
-signal stack_rst     : std_logic;
-signal stack_full    : std_logic;
-signal stack_empty   : std_logic;
-signal stack_command : std_logic;
-signal stack_popd    : std_logic_vector(63 downto 0);
-signal stack_pushd   : std_logic_vector(63 downto 0);
+signal stack_enable         : std_logic;
+signal stack_rst            : std_logic;
+signal stack_full           : std_logic;
+signal stack_empty          : std_logic;
+signal stack_command        : std_logic;
+signal stack_popd           : std_logic_vector(63 downto 0);
+signal stack_pushd          : std_logic_vector(63 downto 0);
 
-signal iobuff_enable  : std_logic;
-signal iobuff_rst     : std_logic;
-signal iobuff_full    : std_logic;
-signal iobuff_empty   : std_logic;
-signal iobuff_command : std_logic;
-signal iobuff_instr   : std_logic;
-signal iobuff_vec     : std_logic;
-signal iobuff_popd    : std_logic_vector( 7 downto 0);
-signal iobuff_pushd   : std_logic_vector( 7 downto 0);
-signal iobuff_outp    : std_logic_vector(63 downto 0);
+signal iobuff_enable        : std_logic;
+signal iobuff_rst           : std_logic;
+signal iobuff_full          : std_logic;
+signal iobuff_empty         : std_logic;
+signal iobuff_command       : std_logic;
+signal iobuff_vec           : std_logic;
+signal iobuff_popd          : std_logic_vector( 7 downto 0);
+signal iobuff_pushd         : std_logic_vector( 7 downto 0);
+signal iobuff_outp          : std_logic_vector(63 downto 0);
 
-signal cmem_in         : std_logic_vector(63 downto 0);
-signal cmem_out        : std_logic_vector(63 downto 0);
-signal cmem_read_addr  : std_logic_vector( 3 downto 0);
-signal cmem_write_addr : std_logic_vector( 3 downto 0);
-signal cmem_we         : std_logic;
+signal cmem_in              : std_logic_vector(63 downto 0);
+signal cmem_out             : std_logic_vector(63 downto 0);
+signal cmem_read_addr       : std_logic_vector( 3 downto 0);
+signal cmem_write_addr      : std_logic_vector( 3 downto 0);
+signal cmem_we              : std_logic;
+
+signal mem_in               : std_logic_vector(63 downto 0);
+signal mem_out              : std_logic_vector(63 downto 0);
+signal mem_read_addr        : std_logic_vector( 3 downto 0);
+signal mem_write_addr       : std_logic_vector( 3 downto 0);
+signal mem_we               : std_logic;
+
+signal instr_mem_in         : std_logic_vector(7 downto 0);
+signal instr_mem_out        : std_logic_vector(7 downto 0);
+signal instr_mem_read_addr  : integer range 0 to 63 := 0;
+signal instr_mem_we         : std_logic;
 
 begin
 
@@ -181,7 +202,7 @@ begin
    basic_uart_inst: basic_uart
    generic map (DIVISOR => 326)
    port map (
-      clk       => CLOCK_50,
+      clk       => CLOCK_50, 
 		reset     => reset,
       rx_data   => uart_rx_data,
 		rx_enable => uart_rx_enable,
@@ -223,20 +244,40 @@ begin
 	   push_data   => iobuff_pushd,
 	   pop_data    => iobuff_popd,
 	
-	   instr_ready => iobuff_instr,
 	   vec_ready   => iobuff_vec,
 	   output      => iobuff_outp
    );
   
-   const_mem_inst : const_mem
+   const_mem_inst : mem
    port map (
       clk        => CLOCK_50, 
    	write_addr => cmem_write_addr, 
    	read_addr  => cmem_read_addr, 
    	we         => cmem_we, 
    	
-   	cmem_in    => cmem_in, 
-   	cmem_out   => cmem_out 
+   	mem_in     => cmem_in, 
+   	mem_out    => cmem_out 
+   );
+	
+	mem_inst : mem
+   port map (
+      clk        => CLOCK_50, 
+   	write_addr => mem_write_addr, 
+   	read_addr  => mem_read_addr, 
+   	we         => mem_we, 
+   	
+   	mem_in     => mem_in, 
+   	mem_out    => mem_out 
+   );
+	
+	instr_mem_inst : instr_mem
+   port map (
+      clk        => CLOCK_50,
+   	read_addr  => instr_mem_read_addr, 
+   	we         => instr_mem_we, 
+   	
+   	instr_mem_in     => instr_mem_in, 
+   	instr_mem_out    => instr_mem_out 
    );
   
    reset_control: process (reset_btn) is
@@ -272,41 +313,38 @@ begin
       when idle =>
          if uart_rx_enable = '1' then
  		      state_next.tx_enable <= '0';
-            -- finish transmission if we received a stopping byte
+            -- finish receiving instructions if we received a stopping byte
 				if uart_rx_data = "11111111" then
-				   iobuff_enable         <= '0';
-					state_next.fsm_state <= push_finished;
+				   instr_mem_we         <= '0';
+					state_next.fsm_state <= instr_push_finished;
 				else
-					iobuff_enable         <= '1';
-					state_next.fsm_state <= push_val;
+					instr_mem_we         <= '1';
+					instr_mem_in         <= uart_rx_data;
+					state_next.fsm_state <= push_instr;
 				end if;
-				
-				-- save the value to stack if it's enabled:
- 		      iobuff_command <= '0'; -- push
- 		      iobuff_pushd   <= uart_rx_data;
          end if;
 			
-		when push_val =>
-		   iobuff_enable         <= '0';
+		when push_instr =>
+		   instr_mem_we         <= '0';
 		   state_next.fsm_state <= idle;
 			
-		when push_finished =>
-		   iobuff_enable         <= '0';
+		when instr_push_finished =>
+		   instr_mem_we         <= '0';
 			state_next.fsm_state <= received;
 		 
       when received =>
          state_next.tx_enable <= '0';
  		   state_next.fsm_state <= reading;
  	
- 		   iobuff_enable         <= '1';
- 		   iobuff_command        <= '1'; -- pop
-			
+ 		   instr_mem_we         <= '0';
+			instr_mem_read_addr  <= 0;
+ 		   
  	   when reading =>
  	      state_next.tx_enable <= '0';
- 	      state_next.tx_data   <= iobuff_popd; --state.liczba1 + state.liczba2;
+ 	      state_next.tx_data   <= instr_mem_out; -- iobuff_popd; --state.liczba1 + state.liczba2;
  	      state_next.fsm_state <= readval;	
  		   
- 		   iobuff_enable         <= '0';
+ 		   instr_mem_we         <= '0';
 		 
 		 when readval =>
          if uart_tx_ready = '1' then
@@ -319,11 +357,11 @@ begin
 				state_next.tx_enable <= '0';
 				state_next.fsm_state <= emitting;
 			else
-            if iobuff_empty = '1' then
+            --if iobuff_empty = '1' then
 				   state_next.fsm_state <= idle;
-				else
-				   state_next.fsm_state <= received;
-				end if;
+				--else
+				--   state_next.fsm_state <= received;
+				--end if;
 		  end if;
        
      end case;

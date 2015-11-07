@@ -16,7 +16,6 @@ port (
 	push_data   : in  std_logic_vector(7  downto 0);
 	pop_data    : out std_logic_vector(7  downto 0);
 	
-	instr_ready : out std_logic;
 	vec_ready   : out std_logic;
 	output      : out std_logic_vector(63 downto 0)
 );
@@ -42,27 +41,7 @@ begin
 	output(15 downto  8) <= stack_mem(1);
 	output( 7 downto  0) <= stack_mem(0);
 	
-	-- instr_ready <= (stack_ptr = 5);
-	-- vec_ready   <= s_full;
-	
-	-- instr_ready <=> 2 bytes on stack, can pop instruction
-	-- vec_ready   <=> 8 bytes on stack, can pop whole chunk
-	flag_setter : process(clk) is
-	begin
-	   if rising_edge(clk) then
-		   if stack_ptr = 5 then
-			   instr_ready <= '1';
-			else
-			   instr_ready <= '0';
-		   end if;
-			
-			if stack_ptr = 0 then
-			   vec_ready <= '1';
-			else
-			   vec_ready <= '0';
-			end if;
-		end if;
-	end process;
+	vec_ready   <= s_full;
 
    full  <= s_full;
 	empty <= s_empty;
