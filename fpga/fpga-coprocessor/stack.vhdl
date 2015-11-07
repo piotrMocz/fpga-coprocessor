@@ -11,24 +11,22 @@ port (
 	empty     : out std_logic;
 	full      : out std_logic;
 	command   : in  std_logic;   -- 0 -> push, 1 -> pop
-	push_data : in  std_logic_vector(7 downto 0);
-	pop_data  : out std_logic_vector(7 downto 0);
+	push_data : in  std_logic_vector(63 downto 0);
+	pop_data  : out std_logic_vector(63 downto 0)
 	
-	outp      : out std_logic_vector(7 downto 0)
+	-- outp      : out std_logic_vector(7 downto 0)
    );
 end stack;
 
 architecture arch of stack is
 
-   type   memory is array(16 downto 0) of std_logic_vector(7 downto 0);
+   type   memory is array(16 downto 0) of std_logic_vector(63 downto 0);
    signal stack_mem : memory    := (others => (others => '0'));
 	signal stack_ptr : integer   := 15;
 	signal s_empty   : std_logic := '1';
 	signal s_full    : std_logic := '0';
 	
 begin
-   outp <= stack_mem(stack_ptr);
-
    full  <= s_full;
 	empty <= s_empty;
 	
