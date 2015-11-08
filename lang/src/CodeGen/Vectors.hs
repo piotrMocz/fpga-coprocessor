@@ -27,6 +27,7 @@ packOne [a,b,c,d,e,f,g,h] = Chunk 8 (h, g, f, e, d, c, b, a)
 packOne _                 = error "PackOne can only handle lists up to 8 elements long"
 
 pack' :: [Int] -> Vector -> Vector
+pack' (a:b:c:d:e:f:g:h:[]) vs = (packOne [a,b,c,d,e,f,g,h]) : vs
 pack' (a:b:c:d:e:f:g:h:rest) vs = pack' rest (Chunk 8 (h,g,f,e,d,c,b,a) : vs)
 pack' is vs = (packOne is) : vs
 

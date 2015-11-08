@@ -31,7 +31,7 @@ main = do
     -- putStrLn .               show . view avAddrs  $ genData
     putStrLn . unlines . map show . view asmCode   $ genData
     putStrLn . unlines . map show . view constData $ genData
-    genBinary "binarka" (view asmCode $ genData)
+    genBinary "binarka" (view asmCode $ genData) (view constData $ genData)
     -- print "=========== ASM generation ============="
     -- putStrLn code1
     -- print "=========== Label renaming ============="

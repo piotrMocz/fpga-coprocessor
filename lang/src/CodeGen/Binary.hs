@@ -2,18 +2,18 @@
 module CodeGen.Binary where
 
 import           CodeGen.ASM
-import           Data.Binary     (Binary, put, get, encodeFile)
+import           Data.Binary     (Binary, put, get, encodeFile, encode)
 import           Data.Word       (Word8)
 import           Control.Monad   ((>>))
 import           CodeGen.Vectors (Chunk(..))
 import qualified Data.ByteString.Lazy            as BS
 
-genBinary :: FilePath -> [ASMInstruction] -> IO ()
-genBinary path asm = encodeFile path asm
+genBinary :: FilePath -> [ASMInstruction] -> ConstStorage -> IO ()
+genBinary path asm strg = BS.writeFile path (encode asm `BS.append` encode strg)
 
 instance {-# OVERLAPPING #-} Binary [ASMInstruction] where
-  put = mapM_ put
-  get = undefined
+  put xs = mapM_ put xs >> put (255 :: Word8)
+  get    = undefined
 
 instance Binary ASMInstruction where
   put Add                    = put (0 :: Word8)
@@ -36,7 +36,7 @@ instance Binary ASMInstruction where
                                                  >> put (fromIntegral size :: Word8)
   put (Store addr size)      = put (17 :: Word8) >> put addr
                                                  >> put (fromIntegral size :: Word8)
-  put (Push chunk)           = put (18 :: Word8) >> put chunk
+  put (Push addr)            = put (18 :: Word8) >> put addr
   get = undefined
 
 instance Binary Addr where
@@ -58,4 +58,21 @@ instance Binary Chunk where
                                        >> put (fromIntegral f :: Word8)
                                        >> put (fromIntegral g :: Word8)
                                        >> put (fromIntegral h :: Word8)
+  get = undefined
+
+instance {-# OVERLAPPING #-} Binary [ConstData] where
+  put xs = mapM_ (\x -> put x >> put (255 :: Word8)) xs
+  get = undefined
+
+
+instance Binary ConstData where
+  put (ConstScalar i) = put (fromIntegral i :: Word8)
+  put (ConstVector (a,b,c,d,e,f,g,h)) = put (fromIntegral a :: Word8)
+                                     >> put (fromIntegral b :: Word8)
+                                     >> put (fromIntegral c :: Word8)
+                                     >> put (fromIntegral d :: Word8)
+                                     >> put (fromIntegral e :: Word8)
+                                     >> put (fromIntegral f :: Word8)
+                                     >> put (fromIntegral g :: Word8)
+                                     >> put (fromIntegral h :: Word8)
   get = undefined
