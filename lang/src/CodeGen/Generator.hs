@@ -61,7 +61,7 @@ processAST ast = mapM_ processExpr ast
 
 processExpr :: AST.Expr -> GeneratorState ()
 processExpr expr = case expr of
-    AST.Lit i            -> push  (fromIntegral i      :: Int  ) -- TODO change integers to ints
+    AST.Lit i            -> pushV  (map fromIntegral [0,0,0,0,0,0,0,i] :: [Int]) -- TODO change integers to ints
     AST.VecLit is        -> pushV (map fromIntegral is :: [Int])
     AST.VarE var         -> lookupVar var
     AST.Decl nm tp expr  -> createVar nm tp expr

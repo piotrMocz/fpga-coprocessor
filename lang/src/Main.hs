@@ -1,12 +1,12 @@
 module Main where
 
-
+import CodeGen.LabelRename (renameLabels)
 import Parser.Parser       (parseFile)
 import CodeGen.Generator   (symTable, modAST, asmCode, runASTTranslation, avAddrs, constData)
 import CodeGen.ASM         (makeASM)
-import CodeGen.LabelRename (renameLabels)
 import CodeGen.Typechecker (runTypechecker, TypecheckerError, err)
 import CodeGen.Binary      (genBinary)
+
 
 import Text.Show.Pretty  (ppShow)
 import Control.Lens
@@ -20,19 +20,17 @@ runCompiler ast = case runTypechecker ast of
 
 main :: IO ()
 main = do
+    print "==========Parsing==============="
     result <- parseFile "example"
-    print "=========== AST ================"
+    print "=========ASTPrinting============"
     putStrLn . ppShow $ result
-    print "========= Typechecking ========="
-    putStrLn . ppShow $ runTypechecker result
     print "=========== ASMGen ============="
     let genData = runCompiler result
-    -- putStrLn .               show . view symTable $ genData
-    -- putStrLn .               show . view avAddrs  $ genData
-    putStrLn . unlines . map show . view asmCode   $ genData
-    putStrLn . unlines . map show . view constData $ genData
-    genBinary "binarka" (view asmCode $ genData) (view constData $ genData)
-    -- print "=========== ASM generation ============="
-    -- putStrLn code1
-    -- print "=========== Label renaming ============="
-    -- putStrLn code2
+    print "========Proper labels==========="
+    let asm = renameLabels (view asmCode genData)
+    let consts = view constData genData
+    print "======Code and const data======="
+    putStrLn . unlines . map show $ asm
+    putStrLn . unlines . map show $ consts
+    print "=========Saving binary=========="
+    genBinary "binarka" (fmap snd asm) consts
