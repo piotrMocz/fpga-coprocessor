@@ -18,7 +18,7 @@ end instr_mem;
 architecture arch of instr_mem is
    
 	type instr_mem_t is array(0 to 63) of std_logic_vector(7 downto 0);
-   signal ram_block  : instr_mem_t;
+   signal ram_block  : instr_mem_t := (others => (others => '0'));
 	--signal write_addr : integer range 0 to 63 := 0;
 	
 begin

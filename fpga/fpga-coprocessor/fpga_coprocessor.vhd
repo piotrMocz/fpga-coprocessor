@@ -41,10 +41,10 @@ entity fpga_coprocessor is
 	ADC_SDAT   : in    std_logic;
 	-- 2x13 GPIO Header:
 	GPIO_2     : inout std_logic_vector(12 downto 0);
-	GPIO_2_IN  : in    std_logic_vector(2  downto 0);
+	GPIO_2_IN  : in    std_logic_vector( 2 downto 0);
 	-- GPIO_0, GPIO_0 connect to GPIO Default:
 	GPIO       : inout std_logic_vector(33 downto 0);
-	GPIO_IN    : in    std_logic_vector(1  downto 0)
+	GPIO_IN    : in    std_logic_vector( 1 downto 0)
 	);
 	
 end entity fpga_coprocessor;
@@ -126,6 +126,18 @@ port (
 );
 end component;
 
+component const_mem is
+port (
+   clk          : in  std_logic;
+	write_addr   : in  integer range 0 to 63;
+	read_addr    : in  integer range 0 to  7;
+	we           : in  std_logic;
+	
+	cmem_byte_in : in  std_logic_vector( 7 downto 0);
+	cmem_out     : out std_logic_vector(63 downto 0)
+);
+end component;
+
 component instr_mem is
 port (
    clk           : in  std_logic;
@@ -139,12 +151,14 @@ port (
 end component;
 
 
-type fsm_state_t is (idle, received, push_instr, instr_push_finished, reading, readval, emitting); --, received2, reading2, readval2, emitting2);
+type fsm_state_t is (mock_push, idle, received, push_instr, push_const, push_finished, reading, readval, emitting); --, received2, reading2, readval2, emitting2);
 type state_t is
 record
   fsm_state : fsm_state_t; -- FSM state
   tx_data   : std_logic_vector(7 downto 0);
   tx_enable : std_logic;
+  consts    : std_logic;
+  sendctr   : integer;
 end record;
 
 signal reset                : std_logic;
@@ -155,7 +169,8 @@ signal uart_tx_data         : std_logic_vector(7 downto 0);
 signal uart_tx_enable       : std_logic;
 signal uart_tx_ready        : std_logic;
 
-signal state,state_next     : state_t;
+signal state                : state_t := (fsm_state => idle, tx_data => "00000000", tx_enable => '0', consts => '0', sendctr => 2);
+signal state_next           : state_t := (fsm_state => idle, tx_data => "00000000", tx_enable => '0', consts => '0', sendctr => 2);
 
 signal alu_inp1             : std_logic_vector( 7 downto 0);
 signal alu_inp2             : std_logic_vector( 7 downto 0);
@@ -179,10 +194,10 @@ signal iobuff_popd          : std_logic_vector( 7 downto 0);
 signal iobuff_pushd         : std_logic_vector( 7 downto 0);
 signal iobuff_outp          : std_logic_vector(63 downto 0);
 
-signal cmem_in              : std_logic_vector(63 downto 0);
+signal cmem_in              : std_logic_vector( 7 downto 0);
 signal cmem_out             : std_logic_vector(63 downto 0);
-signal cmem_read_addr       : std_logic_vector( 3 downto 0);
-signal cmem_write_addr      : std_logic_vector( 3 downto 0);
+signal cmem_read_addr       : integer range 0 to  7;
+signal cmem_write_addr      : integer range 0 to 63;
 signal cmem_we              : std_logic;
 
 signal mem_in               : std_logic_vector(63 downto 0);
@@ -196,6 +211,9 @@ signal instr_mem_out        : std_logic_vector(7 downto 0);
 signal instr_mem_read_addr  : integer range 0 to 63 := 0;
 signal instr_mem_write_addr : integer range 0 to 63 := 0;
 signal instr_mem_we         : std_logic;
+
+signal tmp_sig              : std_logic_vector( 7 downto 0); -- := "00000000";
+signal res                  : std_logic_vector(64 downto 0);
 
 begin
 
@@ -250,15 +268,15 @@ begin
 	   output      => iobuff_outp
    );
   
-   const_mem_inst : mem
+   const_mem_inst : const_mem
    port map (
-      clk        => CLOCK_50, 
-   	write_addr => cmem_write_addr, 
-   	read_addr  => cmem_read_addr, 
-   	we         => cmem_we, 
+      clk          => CLOCK_50, 
+   	write_addr   => cmem_write_addr, 
+   	read_addr    => cmem_read_addr, 
+   	we           => cmem_we,
    	
-   	mem_in     => cmem_in, 
-   	mem_out    => cmem_out 
+   	cmem_byte_in => cmem_in, 
+   	cmem_out     => cmem_out 
    );
 	
 	mem_inst : mem
@@ -291,20 +309,20 @@ begin
          reset <= '1';
       end if;
    end process;
-  
-   fsm_clk: process (CLOCK_50,reset) is
-   begin
-      if reset = '1' then
-         state.fsm_state <= idle;
-         state.tx_enable <= '0';
-	 	   state.tx_data   <= (others => '0');
-      else
-         if rising_edge(CLOCK_50) then
-            state <= state_next;
-         end if;
-      end if;
-   end process;
- 
+--  
+--   fsm_clk: process (CLOCK_50,reset) is
+--   begin
+--      if reset = '1' then
+--         state.fsm_state <= idle;
+--         state.tx_enable <= '0';
+--	 	   state.tx_data   <= (others => '0');
+--      else
+--         if rising_edge(CLOCK_50) then
+--            state <= state_next;
+--         end if;
+--      end if;
+--   end process;
+-- 
 
    fsm_next: process (CLOCK_50) is
    begin
@@ -319,36 +337,71 @@ begin
             -- finish receiving instructions if we received a stopping byte
 				if uart_rx_data = "11111111" then
 				   instr_mem_we         <= '0';
-					state_next.fsm_state <= instr_push_finished;
+					
+					if state.consts = '0' then
+					   state_next.consts    <= '1';
+						state_next.fsm_state <= mock_push;
+					else
+					   instr_mem_we         <= '0';
+    					state_next.fsm_state <= push_finished;
+					end if;
 				else
-					instr_mem_we         <= '1';
-					instr_mem_in         <= uart_rx_data;
-					state_next.fsm_state <= push_instr;
+				   if state.consts = '0' then
+					   instr_mem_we         <= '1';
+						cmem_we              <= '0';
+					   instr_mem_in         <= uart_rx_data;
+					   state_next.fsm_state <= push_instr;
+					else
+					   cmem_we              <= '1';
+						instr_mem_we         <= '0';
+						cmem_in              <= uart_rx_data;
+						state_next.fsm_state <= push_const;
+					end if;
 				end if;
          end if;
 			
+		when mock_push =>
+	      instr_mem_we <= '0';
+		   state_next.tx_enable <= '0';
+		   state_next.fsm_state <= idle;	
+			
 		when push_instr =>
+		   state_next.tx_enable <= '0';
 		   instr_mem_we         <= '0';
+			cmem_we              <= '0';
 			instr_mem_write_addr <= instr_mem_write_addr + 1;
 		   state_next.fsm_state <= idle;
 			
-		when instr_push_finished =>
+		when push_const =>
+		   state_next.tx_enable <= '0';
 		   instr_mem_we         <= '0';
+			cmem_we              <= '0';
+			cmem_write_addr      <= cmem_write_addr + 1;
+		   state_next.fsm_state <= idle;
+			
+		when push_finished =>
+		   state_next.tx_enable <= '0';
+			instr_mem_we         <= '0';
+			cmem_we              <= '0';
 			state_next.fsm_state <= received;
 		 
       when received =>
          state_next.tx_enable <= '0';
  		   state_next.fsm_state <= reading;
- 	
+
+	      cmem_we              <= '0';		
  		   instr_mem_we         <= '0';
-			instr_mem_read_addr  <= 1;
+			cmem_read_addr       <= state.sendctr - 1;
+			state_next.sendctr   <= state.sendctr - 1;
+			-- tmp_sig <= "01010101";
  		   
  	   when reading =>
  	      state_next.tx_enable <= '0';
- 	      state_next.tx_data   <= instr_mem_out; -- iobuff_popd; --state.liczba1 + state.liczba2;
+ 	      state_next.tx_data   <= cmem_out(55 downto 48); -- instr_mem_out; -- iobuff_popd; --state.liczba1 + state.liczba2;
  	      state_next.fsm_state <= readval;	
  		   
  		   instr_mem_we         <= '0';
+			cmem_we              <= '0';
 		 
 		 when readval =>
          if uart_tx_ready = '1' then
@@ -361,15 +414,16 @@ begin
 				state_next.tx_enable <= '0';
 				state_next.fsm_state <= emitting;
 			else
-            --if iobuff_empty = '1' then
+            if state.sendctr = 0 then
 				   state_next.fsm_state <= idle;
-				--else
-				--   state_next.fsm_state <= received;
-				--end if;
+				else
+				   state_next.fsm_state <= received;
+				end if;
 		  end if;
        
      end case;
  	 
+	  state <= state_next;
  	 end if;
    end process;
   
