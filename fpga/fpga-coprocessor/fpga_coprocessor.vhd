@@ -1,4 +1,3 @@
--- based on code from bealto.com
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -53,387 +52,45 @@ end entity fpga_coprocessor;
 architecture arch of fpga_coprocessor is
 
     
-component basic_uart is
-generic (
-  DIVISOR: natural
-);
-port (
-  clk: in std_logic;   -- system clock
-  reset: in std_logic;
-  
-  -- Client interface
-  rx_data: out std_logic_vector(7 downto 0);  -- received byte
-  rx_enable: out std_logic;  -- validates received byte (1 system clock spike)
-  tx_data: in std_logic_vector(7 downto 0);  -- byte to send
-  tx_enable: in std_logic;  -- validates byte to send if tx_ready is '1'
-  tx_ready: out std_logic;  -- if '1', we can send a new byte, otherwise we won't take it
-  
-  -- Physical interface
-  rx: in std_logic;
-  tx: out std_logic
-);
-end component;
-
-
-component ALU is
-port (
-    clk        : in  std_logic;
-	 inp1_data  : in  std_logic_vector(7 downto 0);
-	 inp2_data  : in  std_logic_vector(7 downto 0);
-	 -- enable     : in  std_logic;
-	 outp       : out std_logic_vector(7 downto 0)
-  );
-end component;
-
-component stack is
-port (
-   clk       : in  std_logic;
-	enable    : in  std_logic;
-	rst       : in  std_logic;
-	empty     : out std_logic;
-	full      : out std_logic;
-	command   : in  std_logic;
-	push_data : in  std_logic_vector(63 downto 0);
-	pop_data  : out std_logic_vector(63 downto 0)
-   );
-end component;
-
-component io_buffer is
-port (
-   clk         : in  std_logic;
-	enable      : in  std_logic;
-	rst         : in  std_logic;
-	empty       : out std_logic;
-	full        : out std_logic;
-	command     : in  std_logic;   -- 0 -> push, 1 -> pop
-	push_data   : in  std_logic_vector(7  downto 0);
-	pop_data    : out std_logic_vector(7  downto 0);
-	
-	vec_ready   : out std_logic;
-	output      : out std_logic_vector(63 downto 0)
-);
-end component;
-
-component mem is
-port (
-   clk        : in  std_logic;
-	write_addr : in  std_logic_vector(3 downto 0); -- integer range 0 to 15;
-	read_addr  : in  std_logic_vector(3 downto 0); -- integer range 0 to 15;
-	we         : in  std_logic;
-	
-	mem_in     : in  std_logic_vector(63 downto 0);
-	mem_out    : out std_logic_vector(63 downto 0)
-);
-end component;
-
-component const_mem is
-port (
-   clk          : in  std_logic;
-	write_addr   : in  integer range 0 to 63;
-	read_addr    : in  integer range 0 to  7;
-	we           : in  std_logic;
-	
-	cmem_byte_in : in  std_logic_vector( 7 downto 0);
-	cmem_out     : out std_logic_vector(63 downto 0)
-);
-end component;
-
-component instr_mem is
-port (
-   clk           : in  std_logic;
-	read_addr     : in  integer range 0 to 63;
-	write_addr    : in  integer range 0 to 63;
-	we            : in  std_logic;
-	
-	instr_mem_in  : in  std_logic_vector(7 downto 0);
-	instr_mem_out : out std_logic_vector(7 downto 0)
-);
-end component;
-
-
-type fsm_state_t is (mock_push, idle, received, push_instr, push_const, push_finished, reading, readval, emitting); --, received2, reading2, readval2, emitting2);
-type state_t is
-record
-  fsm_state : fsm_state_t; -- FSM state
-  tx_data   : std_logic_vector(7 downto 0);
-  tx_enable : std_logic;
-  consts    : std_logic;
-  sendctr   : integer;
-end record;
-
-signal reset                : std_logic;
-signal reset_btn            : std_logic;
-signal uart_rx_data         : std_logic_vector(7 downto 0);
-signal uart_rx_enable       : std_logic;
-signal uart_tx_data         : std_logic_vector(7 downto 0);
-signal uart_tx_enable       : std_logic;
-signal uart_tx_ready        : std_logic;
-
-signal state                : state_t := (fsm_state => idle, tx_data => "00000000", tx_enable => '0', consts => '0', sendctr => 2);
-signal state_next           : state_t := (fsm_state => idle, tx_data => "00000000", tx_enable => '0', consts => '0', sendctr => 2);
-
-signal alu_inp1             : std_logic_vector( 7 downto 0);
-signal alu_inp2             : std_logic_vector( 7 downto 0);
-signal alu_outp             : std_logic_vector( 7 downto 0);
-
-signal stack_enable         : std_logic;
-signal stack_rst            : std_logic;
-signal stack_full           : std_logic;
-signal stack_empty          : std_logic;
-signal stack_command        : std_logic;
-signal stack_popd           : std_logic_vector(63 downto 0);
-signal stack_pushd          : std_logic_vector(63 downto 0);
-
-signal iobuff_enable        : std_logic;
-signal iobuff_rst           : std_logic;
-signal iobuff_full          : std_logic;
-signal iobuff_empty         : std_logic;
-signal iobuff_command       : std_logic;
-signal iobuff_vec           : std_logic;
-signal iobuff_popd          : std_logic_vector( 7 downto 0);
-signal iobuff_pushd         : std_logic_vector( 7 downto 0);
-signal iobuff_outp          : std_logic_vector(63 downto 0);
-
-signal cmem_in              : std_logic_vector( 7 downto 0);
-signal cmem_out             : std_logic_vector(63 downto 0);
-signal cmem_read_addr       : integer range 0 to  7;
-signal cmem_write_addr      : integer range 0 to 63;
-signal cmem_we              : std_logic;
-
-signal mem_in               : std_logic_vector(63 downto 0);
-signal mem_out              : std_logic_vector(63 downto 0);
-signal mem_read_addr        : std_logic_vector( 3 downto 0);
-signal mem_write_addr       : std_logic_vector( 3 downto 0);
-signal mem_we               : std_logic;
-
-signal instr_mem_in         : std_logic_vector(7 downto 0);
-signal instr_mem_out        : std_logic_vector(7 downto 0);
-signal instr_mem_read_addr  : integer range 0 to 63 := 0;
-signal instr_mem_write_addr : integer range 0 to 63 := 0;
-signal instr_mem_we         : std_logic;
-
-signal tmp_sig              : std_logic_vector( 7 downto 0); -- := "00000000";
-signal res                  : std_logic_vector(64 downto 0);
-
+ component LOOPBACK is
+        port 
+        (  
+            -- General
+            CLOCK                   :   in      std_logic;
+            RESET                   :   in      std_logic;    
+            RX                      :   in      std_logic;
+            TX                      :   out     std_logic;
+				LEDS                    :   out     std_logic_vector(7 downto 0)
+        );
+    end component LOOPBACK;
+    
+    signal tx, rx, rx_sync, reset, reset_sync, USER_RESET : std_logic;
+	 signal led_vec : std_logic_vector(7 downto 0);
+	 
 begin
 
-   reset_btn <= KEY(0);
- 
-   basic_uart_inst: basic_uart
-   generic map (DIVISOR => 326)
-   port map (
-      clk       => CLOCK_50, 
-		reset     => reset,
-      rx_data   => uart_rx_data,
-		rx_enable => uart_rx_enable,
-      tx_data   => uart_tx_data,
-		tx_enable => uart_tx_enable,
-		tx_ready  => uart_tx_ready,
-      rx        => GPIO(11),
-      tx        => GPIO( 9)
-   );
-   
-   ALU_inst : ALU
-   port map (
-      clk       => CLOCK_50,
- 	   inp1_data => alu_inp1,
- 	   inp2_data => alu_inp2,
- 	   outp      => alu_outp
-   );
-   
-   stack_inst : stack
-   port map (
-      clk       => CLOCK_50,
- 	   enable    => stack_enable,
- 	   rst       => stack_rst,
- 	   empty     => stack_empty,
- 	   full      => stack_full,
- 	   command   => stack_command, -- 0 -> push, 1 -> pop
- 	   push_data => stack_pushd,
- 	   pop_data  => stack_popd
-   );
-	
-	iobuff_inst : io_buffer
-	port map (
-      clk         => CLOCK_50,
-	   enable      => iobuff_enable,
-	   rst         => iobuff_rst,
-	   empty       => iobuff_empty,
-	   full        => iobuff_full,
-	   command     => iobuff_command,
-	   push_data   => iobuff_pushd,
-	   pop_data    => iobuff_popd,
-	
-	   vec_ready   => iobuff_vec,
-	   output      => iobuff_outp
-   );
-  
-   const_mem_inst : const_mem
-   port map (
-      clk          => CLOCK_50, 
-   	write_addr   => cmem_write_addr, 
-   	read_addr    => cmem_read_addr, 
-   	we           => cmem_we,
-   	
-   	cmem_byte_in => cmem_in, 
-   	cmem_out     => cmem_out 
-   );
-	
-	mem_inst : mem
-   port map (
-      clk        => CLOCK_50, 
-   	write_addr => mem_write_addr, 
-   	read_addr  => mem_read_addr, 
-   	we         => mem_we, 
-   	
-   	mem_in     => mem_in, 
-   	mem_out    => mem_out 
-   );
-	
-	instr_mem_inst : instr_mem
-   port map (
-      clk        => CLOCK_50,
-   	read_addr  => instr_mem_read_addr,
-		write_addr => instr_mem_write_addr,
-   	we         => instr_mem_we, 
-   	
-   	instr_mem_in     => instr_mem_in, 
-   	instr_mem_out    => instr_mem_out 
-   );
-  
-   reset_control: process (reset_btn) is
-   begin
-      if reset_btn = '1' then
-         reset <= '0';
-      else
-         reset <= '1';
-      end if;
-   end process;
---  
---   fsm_clk: process (CLOCK_50,reset) is
---   begin
---      if reset = '1' then
---         state.fsm_state <= idle;
---         state.tx_enable <= '0';
---	 	   state.tx_data   <= (others => '0');
---      else
---         if rising_edge(CLOCK_50) then
---            state <= state_next;
---         end if;
---      end if;
---   end process;
--- 
-
-   fsm_next: process (CLOCK_50) is
-   begin
-      if rising_edge(CLOCK_50) then
-   
-      state_next <= state;
-      case state.fsm_state is
-     
-      when idle =>
-         if uart_rx_enable = '1' then
- 		      state_next.tx_enable <= '0';
-            -- finish receiving instructions if we received a stopping byte
-				if uart_rx_data = "11111111" then
-				   instr_mem_we         <= '0';
-					
-					if state.consts = '0' then
-					   state_next.consts    <= '1';
-						state_next.fsm_state <= mock_push;
-					else
-					   instr_mem_we         <= '0';
-    					state_next.fsm_state <= push_finished;
-					end if;
-				else
-				   if state.consts = '0' then
-					   instr_mem_we         <= '1';
-						cmem_we              <= '0';
-					   instr_mem_in         <= uart_rx_data;
-					   state_next.fsm_state <= push_instr;
-					else
-					   cmem_we              <= '1';
-						instr_mem_we         <= '0';
-						cmem_in              <= uart_rx_data;
-						state_next.fsm_state <= push_const;
-					end if;
-				end if;
-         end if;
-			
-		when mock_push =>
-	      instr_mem_we <= '0';
-		   state_next.tx_enable <= '0';
-		   state_next.fsm_state <= idle;	
-			
-		when push_instr =>
-		   state_next.tx_enable <= '0';
-		   instr_mem_we         <= '0';
-			cmem_we              <= '0';
-			instr_mem_write_addr <= instr_mem_write_addr + 1;
-		   state_next.fsm_state <= idle;
-			
-		when push_const =>
-		   state_next.tx_enable <= '0';
-		   instr_mem_we         <= '0';
-			cmem_we              <= '0';
-			cmem_write_addr      <= cmem_write_addr + 1;
-		   state_next.fsm_state <= idle;
-			
-		when push_finished =>
-		   state_next.tx_enable <= '0';
-			instr_mem_we         <= '0';
-			cmem_we              <= '0';
-			state_next.fsm_state <= received;
-		 
-      when received =>
-         state_next.tx_enable <= '0';
- 		   state_next.fsm_state <= reading;
-
-	      cmem_we              <= '0';		
- 		   instr_mem_we         <= '0';
-			cmem_read_addr       <= state.sendctr - 1;
-			state_next.sendctr   <= state.sendctr - 1;
-			-- tmp_sig <= "01010101";
- 		   
- 	   when reading =>
- 	      state_next.tx_enable <= '0';
- 	      state_next.tx_data   <= cmem_out(55 downto 48); -- instr_mem_out; -- iobuff_popd; --state.liczba1 + state.liczba2;
- 	      state_next.fsm_state <= readval;	
- 		   
- 		   instr_mem_we         <= '0';
-			cmem_we              <= '0';
-		 
-		 when readval =>
-         if uart_tx_ready = '1' then
-            state_next.tx_enable <= '1';
-            state_next.fsm_state <= emitting;
-         end if;
-       
-      when emitting =>
-		   if uart_tx_ready = '0' then
-				state_next.tx_enable <= '0';
-				state_next.fsm_state <= emitting;
-			else
-            if state.sendctr = 0 then
-				   state_next.fsm_state <= idle;
-				else
-				   state_next.fsm_state <= received;
-				end if;
-		  end if;
-       
-     end case;
- 	 
-	  state <= state_next;
- 	 end if;
-   end process;
-  
-   fsm_output: process (CLOCK_50) is
-   begin
-      if rising_edge(CLOCK_50) then
-         uart_tx_enable  <= state.tx_enable;
-         uart_tx_data    <= state.tx_data;
-         LED             <= uart_rx_data;
-      end if;	 
-   end process;
+    LOOPBACK_inst1 : LOOPBACK
+    port map    (  
+            -- General
+            CLOCK       => CLOCK_50,
+            RESET       => reset, 
+            RX          => rx,
+            TX          => tx,
+				LEDS        => led_vec
+    );
+    
+	 USER_RESET <= not KEY(0);
+	 LED        <= led_vec;
+	 
+    DEGLITCH : process (CLOCK_50)
+    begin
+        if rising_edge(CLOCK_50) then
+            rx_sync         <= GPIO(11);
+            rx              <= rx_sync;
+            reset_sync      <= USER_RESET;
+            reset           <= reset_sync;
+            GPIO(9)         <= tx;
+        end if;
+    end process;
 
 end arch;

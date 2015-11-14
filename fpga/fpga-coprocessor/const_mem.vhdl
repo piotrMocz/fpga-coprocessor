@@ -20,7 +20,7 @@ end const_mem;
 architecture arch of const_mem is
    
 	type mem_t is array(0 to 63) of std_logic_vector(7 downto 0);
-   signal ram_block : mem_t;
+   signal ram_block : mem_t := (others => (others => '0'));
 	
 begin
 
