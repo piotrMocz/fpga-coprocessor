@@ -127,7 +127,7 @@ begin
 	 
 	 LEDS    <= led_vec;
 	 -- output one cell of instr mem:
-	 led_vec <= imem_out;
+	 led_vec <= imem_out; -- "00" & std_logic_vector(to_unsigned(imem_write_addr, 6));
     
 	 ----------------------------------------------------------------------------
     -- Simple loopback, retransmit any received data
@@ -152,33 +152,38 @@ begin
 				case loopback_state is
 				
 				when idle =>
-                uart_data_out_ack       <= '0';
                 if uart_data_out_stb = '1' then
+					     uart_data_out_ack   <= '1';
                     buff                <= uart_data_out;
 						  imem_we             <= '1';
 						  imem_in             <= uart_data_out;
 						  
 						  loopback_state      <= processing;
+					 else
+					     uart_data_out_ack   <= '0';
                 end if;
 					 
 				when processing =>
-				    uart_data_out_ack       <= '1';
-				    -- output what we've received:
-					 -- uart_data_in            <= buff;
-					 -- save data to memory:
+				    uart_data_out_ack       <= '0';
 					 imem_we                 <= '0';
+				    imem_write_addr         <= imem_write_addr + 1;
+					 
 					 -- next state:
-					 loopback_state          <= processing2;
+					 if buff = "11111111" then
+     				     loopback_state      <= processing2;
+					 else
+					     loopback_state      <= idle;
+					 end if;
                 
 					 
 				when processing2 =>
-				    imem_write_addr         <= imem_write_addr + 1;
 					 -- we're not interested in what's being received right now:
 					 uart_data_out_ack       <= '0';
 					 
-					 imem_read_addr          <= 0;
+					 imem_read_addr          <= 1;
 					 -- next state:
 					 loopback_state          <= reading;
+				    
 					 
 				when reading =>
 				    -- read from memory:
@@ -186,6 +191,7 @@ begin
 					 loopback_state          <= reading2;
 				
 				when reading2 =>
+				    uart_data_in            <= imem_out;
 					 uart_data_in_stb        <= '1';
 					 -- start sending:
 					 loopback_state          <= sending;
