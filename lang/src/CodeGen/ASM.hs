@@ -65,7 +65,6 @@ data ASMInstruction = Load    { addr  :: Addr  , size :: Int }   -- 0
                     | Sub
                     | Mul
                     | Div
-                    | Dup
                     | AddS -- add from two helper stacks and push the result onto the main stack
                     | SubS -- as above, subtract
                     | MulS -- multiply
@@ -118,7 +117,6 @@ instance MakeASM ASMInstruction where
     makeASM  SubS               = "SUBS"
     makeASM  MulS               = "MULS"
     makeASM  DivS               = "DIVS"
-    makeASM  Dup                = "DUP"
 
 
 instance Show ASMInstruction where

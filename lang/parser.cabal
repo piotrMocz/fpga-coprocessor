@@ -19,6 +19,7 @@ library
 
   build-depends:    base
                   , binary
+                  , binary-bits
                   , bytestring
                   , containers
                   , data-default
@@ -42,6 +43,7 @@ Executable compiler
 
   build-depends:    base
                   , binary
+                  , binary-bits
                   , bytestring
                   , containers
                   , data-default

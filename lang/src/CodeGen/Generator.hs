@@ -216,7 +216,7 @@ nextAdress = do
   st <- get
   let nVec    = length $ filter (not . isScalar) (st ^. constData)
       nScalar = length $ filter isScalar (st ^. constData)
-  return . Addr $ 8*nVec + nScalar + 1
+  return . Addr $ nVec + nScalar
 
 isScalar :: ASM.ConstData -> Bool
 isScalar (ASM.ConstScalar _) = True

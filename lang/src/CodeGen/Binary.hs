@@ -2,10 +2,11 @@
 module CodeGen.Binary where
 
 import           CodeGen.ASM
-import           Data.Binary     (Binary, put, get, encodeFile, encode)
-import           Data.Word       (Word8)
-import           Control.Monad   ((>>))
-import           CodeGen.Vectors (Chunk(..))
+import           Data.Binary          (Binary, put, get, encodeFile, encode, Put)
+import           Data.Binary.Bits.Put (putBool, runBitPut, BitPut)
+import           Data.Word            (Word8)
+import           Control.Monad        ((>>))
+import           CodeGen.Vectors      (Chunk(..))
 import qualified Data.ByteString.Lazy            as BS
 
 genBinary :: FilePath -> [ASMInstruction] -> ConstStorage -> IO ()
@@ -16,28 +17,58 @@ instance {-# OVERLAPPING #-} Binary [ASMInstruction] where
   get    = undefined
 
 instance Binary ASMInstruction where
-  put Add                    = put (0 :: Word8)
-  put Sub                    = put (1 :: Word8)
-  put Mul                    = put (2 :: Word8)
-  put Div                    = put (3 :: Word8)
-  put Dup                    = put (4 :: Word8)
-  put AddS                   = put (5 :: Word8)
-  put SubS                   = put (6 :: Word8)
-  put MulS                   = put (7 :: Word8)
-  put DivS                   = put (8 :: Word8)
-  put MovS1                  = put (9 :: Word8)
-  put MovS2                  = put (10 :: Word8)
-  put (JumpIP i)             = put (11 :: Word8) >> put (fromIntegral i    :: Word8)
-  put (JumpIPZ i)            = put (12 :: Word8) >> put (fromIntegral i    :: Word8)
-  put (JumpZ lab)            = put (13 :: Word8) >> put lab
-  put (Jump lab)             = put (14 :: Word8) >> put lab
-  put (Label lab)            = put (15 :: Word8) >> put lab
-  put (Load addr size)       = put (16 :: Word8) >> put addr
-                                                 >> put (fromIntegral size :: Word8)
-  put (Store addr size)      = put (17 :: Word8) >> put addr
-                                                 >> put (fromIntegral size :: Word8)
-  put (Push addr)            = put (18 :: Word8) >> put addr
+  put Add                    = runBitPut $ putArray [0,1,1,1,1,1,1,0]
+  put Sub                    = runBitPut $ putArray [0,1,1,1,0,1,1,0]
+  put Mul                    = runBitPut $ putArray [0,1,1,1,1,0,1,0]
+  put Div                    = runBitPut $ putArray [0,1,1,1,0,0,1,0]
+  put AddS                   = runBitPut $ putArray [0,1,1,1,0,1,0,0]
+  put SubS                   = runBitPut $ putArray [0,1,1,1,1,1,0,0]
+  put MulS                   = runBitPut $ putArray [0,1,1,1,1,0,0,0]
+  put DivS                   = runBitPut $ putArray [0,1,1,1,0,0,0,0]
+  put MovS1                  = runBitPut $ putArray [0,1,0,1,1,0,0,0]
+  put MovS2                  = runBitPut $ putArray [0,1,0,1,1,0,0,1]
+  put (JumpIP i)             = runBitPut $ putArray [1,0] >> put6BitAdr i
+  put (JumpIPZ i)            = runBitPut $ putArray [1,1] >> put6BitAdr i
+  put (JumpZ (Lab i))        = runBitPut $ putArray [1,1] >> put6BitAdr i
+  put (Jump (Lab i))         = runBitPut $ putArray [1,0] >> put6BitAdr i
+  put (Label lab)            = runBitPut $ putArray [0,1,1,0,0,0,0,0]
+  put (Load (Addr i) size)   = runBitPut $ putArray [0,1,0,0,1] >> put3BitAdr i
+  put (Store (Addr i) size)  = runBitPut $ putArray [0,1,0,1,0] >> put3BitAdr i
+  put (Push (Addr i))        = runBitPut $ putArray [0,1,0,0,0] >> put3BitAdr i
   get = undefined
+
+putArray :: [Int] -> BitPut ()
+putArray = mapM_ pb
+      where pb 1 = putBool $ True
+            pb 0 = putBool $ False
+
+put6BitAdr :: Int -> BitPut ()
+put6BitAdr i = do
+  let adr = toBin i
+  let toAdd = 6 - (length adr)
+  if toAdd >= 0
+    then
+      let fullAdr = replicate toAdd 0 ++ adr
+      in putArray fullAdr
+    else
+      error "Address of JUMP too big"
+
+put3BitAdr :: Int -> BitPut ()
+put3BitAdr i = do
+  let adr = toBin i
+  let toAdd = 3 - (length adr)
+  if toAdd >= 0
+    then
+      let fullAdr = replicate toAdd 0 ++ adr
+      in putArray fullAdr
+    else
+      error "Address of Push, Load or Store too big"
+
+
+toBin 0 = [0]
+toBin n = reverse (helper n)
+  where helper 0 = []
+        helper n = let (q,r) = n `divMod` 2 in r : helper q
 
 instance Binary Addr where
   put (Addr i) = put (fromIntegral i :: Word8)
@@ -61,7 +92,7 @@ instance Binary Chunk where
   get = undefined
 
 instance {-# OVERLAPPING #-} Binary [ConstData] where
-  put xs = mapM_ (\x -> put x >> put (255 :: Word8)) xs
+  put xs = mapM_ (\x -> put x) xs >> put (255 :: Word8)
   get = undefined
 
 
