@@ -83,7 +83,8 @@ architecture RTL of LOOPBACK is
 	     full      : out std_logic;
 	     command   : in  std_logic;
 	     push_data : in  std_logic_vector(63 downto 0);
-	     pop_data  : out std_logic_vector(63 downto 0)
+	     pop_data  : out std_logic_vector(63 downto 0);
+		  outp      : out std_logic_vector(7 downto 0)
         );
     end component;
     
@@ -91,7 +92,7 @@ architecture RTL of LOOPBACK is
     -- UART signals
     ----------------------------------------------------------------------------
     
-	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2);
+	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state);
 	 signal loopback_state               : state_t := idle;
 	 
 	 -- uart signals:
@@ -117,18 +118,20 @@ architecture RTL of LOOPBACK is
 	 signal cmem_8b_out              : std_logic_vector(63 downto 0) := (others => '0');
 	 
 	 -- stack memory signals:
-	 signal s_enable                 : std_logic;
-    signal s_rst                    : std_logic;
+	 signal s_enable                 : std_logic := '0';
+    signal s_rst                    : std_logic := '0';
     signal s_full                   : std_logic;
     signal s_empty                  : std_logic;
-    signal s_command                : std_logic;
+    signal s_command                : std_logic := '0';
     signal s_popd                   : std_logic_vector(63 downto 0);
-    signal s_pushd                  : std_logic_vector(63 downto 0);
+    signal s_pushd                  : std_logic_vector(63 downto 0) := (others => '0');
 	 
 	 -- misc signals:
 	 signal led_vec                  : std_logic_vector(7 downto 0) := (others => '0');
     signal buff                     : std_logic_vector(7 downto 0) := (others => '0');
 	 signal consts                   : std_logic := '0';
+	 
+	 signal stack_outp : std_logic_vector(7 downto 0);
   
 begin
 
@@ -185,11 +188,13 @@ begin
  	    full      => s_full,
  	    command   => s_command, -- 0 -> push, 1 -> pop
  	    push_data => s_pushd,
- 	    pop_data  => s_popd
+ 	    pop_data  => s_popd,
+		 outp      => stack_outp
    );
 	 
 	 
 	 LEDS    <= led_vec;
+	 led_vec <= stack_outp;
 	 -- output one cell of instr mem:
 	 --led_vec <= imem_out; -- "00" & std_logic_vector(to_unsigned(imem_write_addr, 6));
     
@@ -206,8 +211,8 @@ begin
                 uart_data_in_stb        <= '0';
                 uart_data_out_ack       <= '0';
                 uart_data_in            <= (others => '0');
-					 led_vec                 <= "01010101";
 					 buff                    <= (others => '0');
+					 
 					 imem_we                 <= '0';
 					 imem_write_addr         <= 0;
 					 imem_read_addr          <= 0;
@@ -258,7 +263,6 @@ begin
 		      end if;
                  
 		 when processing2 =>
-           --led_vec             <= led_vec(0) & led_vec(7 downto 1);
 		     loopback_state      <= reading;
 		     s_enable            <= '0';
 				    	 
@@ -275,28 +279,23 @@ begin
 		     end if;
 				
 		  when push =>
-            --led_vec            <= led_vec(0) & led_vec(7 downto 1);
 		      loopback_state     <= push2; -- wait for mem-out to be available
 				
 		  when push2 =>
 		      s_enable           <= '1';
             s_command          <= '0';
 		      s_pushd            <= cmem_8b_out;
-				led_vec            <= cmem_8b_out(7 downto 0);
 		      imem_read_addr     <= imem_read_addr + 1;
 		      loopback_state     <= processing2;
 					 
 		 when sending =>
-		      loopback_state     <= sending2;
-		      uart_data_in       <= led_vec;-- s_popd(7 downto 0);
-				-- led_vec            <= s_popd(7 downto 0);
-            uart_data_in_stb   <= '1';    -- to musi byc wlaczone tuz przed wyslaniem.
+		      loopback_state     <= mock_state;
 
-                 -- a moze tu jeszcze jeden stan?
-                 -- when mock_state =>
-		 --     led_vec <= led_vec(0) & led_vec(7 downto 1);
-                 --     loopback_state <= sending2;
-                 --  (jesli robimy ten mock_state, to uart_data_in_stb <= '1';  musi byc tu
+       when mock_state =>
+		      --led_vec <= led_vec(0) & led_vec(7 downto 1);
+            uart_data_in       <= s_popd(7 downto 0);
+				loopback_state     <= sending2;
+            uart_data_in_stb   <= '1'; 
 		
 		when sending2 =>
           -- Clear transmission request strobe upon acknowledge.
