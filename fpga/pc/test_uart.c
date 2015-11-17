@@ -21,7 +21,7 @@ int main()
 	// configure UART: ------------------------------
 	struct termios options;
 	tcgetattr(uart0_filestream, &options);
-	options.c_cflag = B9600 | CS8 | CLOCAL | CREAD;  // baudrate, char size
+	options.c_cflag = B115200 | CS8 | CLOCAL | CREAD;  // baudrate, char size
 	options.c_iflag = IGNPAR; // no parity check
 	options.c_oflag = 0;
 	options.c_lflag = 0;
@@ -32,16 +32,16 @@ int main()
 	// transmit some bytes: -------------------------
 
         unsigned char tosend[64];
-        tosend[0] = 45;   // instruction (only one for now)
-        tosend[1] = 47;  // end of instruction segment
-        tosend[2] = 48;   // 
+        tosend[0] = 66;  
+        tosend[1] = 255;  
+        tosend[2] = 25;  
         tosend[3] = 49;
         tosend[4] = 50;
         tosend[5] = 51;
         tosend[6] = 52;
         tosend[7] = 53;
         tosend[8] = 54;
-        tosend[9] = 255;
+        tosend[9] = 55;
         // first chunk:
         tosend[10] = 20;
         tosend[11] = 21;
@@ -60,8 +60,8 @@ int main()
         tosend[23] = 33;
         tosend[24] = 34;
         tosend[25] = 35;
+        tosend[26] = 255;
         // third chunk:
-        tosend[26] = 37;
         tosend[27] = 38;
         tosend[28] = 39;
         tosend[29] = 40;
@@ -69,55 +69,34 @@ int main()
         tosend[31] = 42;
         tosend[32] = 43;
         tosend[33] = 44;
-        tosend[34] = 255;
-        tosend[35] = 0;
+        tosend[34] = 45;
+        tosend[35] = 255;
 
 	//int cnt = write(uart0_filestream, tx_buffer, p_tx_buffer - tx_buffer); 
-	int cnt = write(uart0_filestream, tosend, 36);
-        //printf("Wyslano: %s\n", tosend); 
+	int cnt = write(uart0_filestream, tosend, 27);
+        // printf("Wyslano: %s\n", tosend); 
         if (cnt < 0)
 	{
 		printf("UART TX error\n");
 		return 1;
 	}
 
-        unsigned char received[32], result[8];
+        unsigned char received[32], result[32];
         memset(received, 0, sizeof(received));
+        memset(result, 0, sizeof(result));
 
-        int reclen = read(uart0_filestream, (void *) received,  2);
-        if (reclen < 0) printf("Klops 1.");
-        result[0] = received[0];
-        printf("Reclen: %d\n", reclen);
-        //reclen = read(uart0_filestream, (void *) received+1, 1);
-        //reclen = read(uart0_filestream, (void *) received+2, 8);
-        //printf("Reclen: %d\n", reclen);
-
-        
-        //else {
-        //    printf("%c %u\n", received[0], received[0]);
-        //    printf("%c %u\n", received[1], received[1]);
-        //    printf("%c %u\n", received[2], received[2]);
-        //}
-
-        reclen = read(uart0_filestream, (void *) received,  2);
-        if (reclen < 0) printf("Klops 2.");
-        result[1] = received[0];
-        //else {
-        //    printf("%c %u\n", received[0], received[0]);
-        //    printf("%c %u\n", received[1], received[1]);
-        //    printf("%c %u\n", received[2], received[2]);
-        //}
-
-        //reclen = read(uart0_filestream, (void *) received+2,  2);
-        //if (reclen < 0) printf("Klops 3.");
-        //result[2] = received[3];
+        for (int i = 0; i < 8; i++) {
+            int reclen = read(uart0_filestream, (void *) received,  8);
+            if (reclen < 0) printf("Klops 1.");
+            result[i] = received[0];
+        }
 
         printf("Received:\n");
-        printf("%c %u\n", result[0], result[0]);
-        printf("%c %u\n", result[1], result[1]);
-        //printf("%c %u\n", result[2], result[2]);
-
-	// close UART: ----------------------------------
+        for (int i = 0; i < 8; i++) {
+            printf("%c %u\n", result[i], result[i]);
+        }
+	
+        // close UART: ----------------------------------
 	koniec:
 	close(uart0_filestream);
 	printf("%s\n", "Kuniec transmisji.");
