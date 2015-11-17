@@ -92,7 +92,7 @@ architecture RTL of LOOPBACK is
     -- UART signals
     ----------------------------------------------------------------------------
     
-	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state);
+	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack);
 	 signal loopback_state               : state_t := idle;
 	 
 	 -- uart signals:
@@ -112,9 +112,9 @@ architecture RTL of LOOPBACK is
 	 
 	 -- constants memory signals:
 	 signal cmem_write_addr          : integer range 0 to 63 := 0;
-	 signal cmem_read_addr           : integer range 0 to 7  := 0;
+	 signal cmem_read_addr           : integer range 0 to  7 := 0;
 	 signal cmem_we                  : std_logic := '0';
-    signal cmem_in                  : std_logic_vector(7  downto 0) := (others => '0');
+    signal cmem_in                  : std_logic_vector( 7 downto 0) := (others => '0');
 	 signal cmem_8b_out              : std_logic_vector(63 downto 0) := (others => '0');
 	 
 	 -- stack memory signals:
@@ -127,11 +127,13 @@ architecture RTL of LOOPBACK is
     signal s_pushd                  : std_logic_vector(63 downto 0) := (others => '0');
 	 
 	 -- misc signals:
-	 signal led_vec                  : std_logic_vector(7 downto 0) := (others => '0');
-    signal buff                     : std_logic_vector(7 downto 0) := (others => '0');
+	 signal led_vec                  : std_logic_vector( 7 downto 0) := (others => '0');
+    signal buff                     : std_logic_vector( 7 downto 0) := (others => '0');
 	 signal consts                   : std_logic := '0';
+	 signal send_ctr                 : integer   := 8;
+	 signal send_buff                : std_logic_vector(63 downto 0) := (others => '0');
 	 
-	 signal stack_outp : std_logic_vector(7 downto 0);
+	 signal stack_outp               : std_logic_vector(7 downto 0);
   
 begin
 
@@ -194,7 +196,7 @@ begin
 	 
 	 
 	 LEDS    <= led_vec;
-	 led_vec <= stack_outp;
+	 -- led_vec <= stack_outp;
 	 -- output one cell of instr mem:
 	 --led_vec <= imem_out; -- "00" & std_logic_vector(to_unsigned(imem_write_addr, 6));
     
@@ -212,6 +214,9 @@ begin
                 uart_data_out_ack       <= '0';
                 uart_data_in            <= (others => '0');
 					 buff                    <= (others => '0');
+					 send_ctr                <= 8;
+					 send_buff               <= (others => '0');
+					 led_vec                 <= (others => '0');
 					 
 					 imem_we                 <= '0';
 					 imem_write_addr         <= 0;
@@ -267,7 +272,7 @@ begin
 		     s_enable            <= '0';
 				    	 
 		 when reading =>
-		     --led_vec <= imem_out;
+		     led_vec <= imem_out;
 		     if imem_out(7 downto 3) = "01000" then  -- "PUSH CASE"
 					cmem_read_addr  <= to_integer(unsigned(imem_out(2 downto 0)));
 			      loopback_state  <= push;
@@ -289,19 +294,33 @@ begin
 		      loopback_state     <= processing2;
 					 
 		 when sending =>
-		      loopback_state     <= mock_state;
+		      s_enable           <= '0';
+		      loopback_state     <= pop_stack;
+				
+		 when pop_stack =>
+		      send_buff          <= s_popd;
+				loopback_state     <= mock_state;
 
        when mock_state =>
 		      --led_vec <= led_vec(0) & led_vec(7 downto 1);
-            uart_data_in       <= s_popd(7 downto 0);
+            uart_data_in       <= send_buff(7 downto 0);
+				-- rotate send_buff:
+				send_buff          <= "00000000" & send_buff(63 downto 8);
+				send_ctr           <= send_ctr - 1;
+				
 				loopback_state     <= sending2;
             uart_data_in_stb   <= '1'; 
 		
 		when sending2 =>
           -- Clear transmission request strobe upon acknowledge.
           if uart_data_in_ack = '1' then
-              uart_data_in_stb    <= '0';			  
-			     loopback_state      <= idle;
+			     uart_data_in_stb    <= '0';
+				  if send_ctr = 0 then			  
+			         loopback_state  <= idle;
+						send_ctr        <= 8;
+				  else
+				      loopback_state  <= mock_state;
+				  end if;
           end if;
 					 
 	   end case;
