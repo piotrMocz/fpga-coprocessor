@@ -62,6 +62,18 @@ architecture RTL of LOOPBACK is
         );
     end component;
 	 
+	 component ram_mem is
+        port (
+            clk           : in  std_logic;
+        	   read_addr     : in  integer range 0 to 7;
+        	   write_addr    : in  integer range 0 to 7;
+        	   we            : in  std_logic;
+        	
+        	   ram_in    : in  std_logic_vector(63 downto 0);
+        	   ram_out   : out std_logic_vector(63 downto 0)
+        );
+    end component;
+	 
 	 component const_mem is
         port (
             clk          : in  std_logic;
@@ -104,7 +116,7 @@ architecture RTL of LOOPBACK is
     -- UART signals
     ----------------------------------------------------------------------------
     
-	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying, vr_adding, vr_adding_inter, vr_adding2, vr_adding_fin);
+	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying, vr_adding, vr_adding_inter, vr_adding2, vr_adding_fin, storing, storing2, loading, loading2);
 	 signal loopback_state               : state_t := idle;
 	 
 	 -- uart signals:
@@ -121,6 +133,13 @@ architecture RTL of LOOPBACK is
     signal imem_we                  : std_logic := '0';
     signal imem_in                  : std_logic_vector(7 downto 0) := (others => '0');
     signal imem_out                 : std_logic_vector(7 downto 0);
+	 
+	 -- ram memory signals:
+	 signal ram_read_addr           : integer range 0 to 7 := 0;
+    signal ram_write_addr          : integer range 0 to 7 := 0;
+    signal ram_we                  : std_logic := '0';
+    signal ram_vec_in              : std_logic_vector(63 downto 0) := (others => '0');
+    signal ram_vec_out             : std_logic_vector(63 downto 0);
 	 
 	 -- constants memory signals:
 	 signal cmem_write_addr          : integer range 0 to 63 := 0;
@@ -218,6 +237,17 @@ begin
 			   cmem_byte_in  => cmem_in
 	 );
 	 
+	 RMEM : ram_mem
+	 port map (
+	         clk           => CLOCK,
+				read_addr     => ram_read_addr,
+        	   write_addr    => ram_write_addr,
+        	   we            => ram_we,
+        	
+        	   ram_in        => ram_vec_in,
+        	   ram_out       => ram_vec_out
+	 );
+	 
     stack_inst : stack
     port map (
        clk       => CLOCK,
@@ -296,6 +326,11 @@ begin
 					 imem_read_addr          <= 0;
 					 imem_in                 <= (others => '0');
 					 
+					 ram_we                 <= '0';
+					 ram_write_addr         <= 0;
+					 ram_read_addr          <= 0;
+					 ram_vec_in                 <= (others => '0');
+					 
 					 cmem_we                 <= '0';
 					 cmem_write_addr         <= 0;
 					 cmem_read_addr          <= 0;
@@ -348,6 +383,7 @@ begin
 		     s_enable            <= '0';
 			  vr1_enable          <= '0';
 			  vr2_enable          <= '0';
+			  ram_we              <= '0';
 				    	 
 		 when reading =>
 		     if imem_out(7 downto 3) = "01000" then  -- "PUSH [const]"
@@ -368,6 +404,14 @@ begin
 					vr2_enable      <= '1';
 					vr2_command     <= '1';
 					loopback_state  <= vr_adding_inter;
+			  elsif imem_out(7 downto 3) = "01010" then -- STORE
+			      s_enable        <= '1';
+					s_command       <= '1';
+					ram_write_addr  <= to_integer(unsigned(imem_out(2 downto 0)));
+					loopback_state  <= storing;
+			  elsif imem_out(7 downto 3) = "01001" then
+			      ram_read_addr   <= to_integer(unsigned(imem_out(2 downto 0)));
+					loopback_state  <= loading;
 			  else
 			      -- read from memory:
 			      s_enable        <= '1';
@@ -421,6 +465,25 @@ begin
 				imem_read_addr     <= imem_read_addr + 1;
 		      loopback_state     <= processing2;
 				
+		  when storing =>
+		      s_enable           <= '0';
+            loopback_state     <= storing2;
+		  
+		  when storing2 =>
+		      ram_vec_in         <= s_popd;
+		      ram_we             <= '1';
+				loopback_state     <= processing2;
+				imem_read_addr     <= imem_read_addr + 1;
+		  
+        when loading =>
+            loopback_state     <= loading2;
+
+		  when loading2 =>
+		      s_enable           <= '1';
+				s_command          <= '0';
+				s_pushd            <= ram_vec_out;
+				imem_read_addr     <= imem_read_addr + 1;
+				loopback_state     <= processing2;
 		  when push =>
 		      loopback_state     <= push2; -- wait for mem-out to be available
 				
