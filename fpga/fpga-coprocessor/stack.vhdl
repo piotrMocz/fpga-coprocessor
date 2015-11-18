@@ -35,8 +35,8 @@ begin
    stack_handler : process(rst, clk) is
 	begin
 	   if rst = '1' then
-	      s_empty   <= '1';
-			s_full    <= '0';
+	      -- s_empty   <= '1';
+			-- s_full    <= '0';
 			stack_ptr <= 15;
 	   elsif rising_edge(clk) then
 	      if enable = '1' and command = '0' and stack_ptr /= 0 then
@@ -55,7 +55,7 @@ begin
 			if enable = '1' and command = '1' and stack_ptr /= 15 then
 				pop_data <= stack_mem(stack_ptr+1);
 				
-				if stack_ptr = 15 then -- empty stack
+				if stack_ptr = 14 then -- empty stack
 				   s_empty <= '1';
 				else
 				   s_empty <= '0';

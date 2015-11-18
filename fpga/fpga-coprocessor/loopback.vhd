@@ -64,13 +64,13 @@ architecture RTL of LOOPBACK is
 	 
 	 component ram_mem is
         port (
-            clk           : in  std_logic;
-        	   read_addr     : in  integer range 0 to 7;
-        	   write_addr    : in  integer range 0 to 7;
-        	   we            : in  std_logic;
+            clk          : in  std_logic;
+        	   read_addr    : in  integer range 0 to 15;
+        	   write_addr   : in  integer range 0 to 15;
+        	   we           : in  std_logic;
         	
-        	   ram_in    : in  std_logic_vector(63 downto 0);
-        	   ram_out   : out std_logic_vector(63 downto 0)
+        	   ram_in       : in  std_logic_vector(63 downto 0);
+        	   ram_out      : out std_logic_vector(63 downto 0)
         );
     end component;
 	 
@@ -135,8 +135,8 @@ architecture RTL of LOOPBACK is
     signal imem_out                 : std_logic_vector(7 downto 0);
 	 
 	 -- ram memory signals:
-	 signal ram_read_addr           : integer range 0 to 7 := 0;
-    signal ram_write_addr          : integer range 0 to 7 := 0;
+	 signal ram_read_addr           : integer range 0 to 15 := 0;
+    signal ram_write_addr          : integer range 0 to 15 := 0;
     signal ram_we                  : std_logic := '0';
     signal ram_vec_in              : std_logic_vector(63 downto 0) := (others => '0');
     signal ram_vec_out             : std_logic_vector(63 downto 0);
@@ -188,8 +188,8 @@ architecture RTL of LOOPBACK is
 	 
 	 signal vr_sum                     : std_logic_vector(63 downto 0);
 	 signal vr_diffr                   : std_logic_vector(63 downto 0);
-	 signal alu_op1                    : std_logic_vector(63 downto 0);
-	 signal alu_op2                    : std_logic_vector(63 downto 0);
+	 signal alu_op1                    : std_logic_vector(63 downto 0) := (others => '0');
+	 signal alu_op2                    : std_logic_vector(63 downto 0) := (others => '0');
   
 begin
 
@@ -298,7 +298,7 @@ begin
 	 
 	 
 	 LEDS    <= led_vec;
-	 led_vec <= vr2_outp;
+	 led_vec <= "0000000" & s_empty; -- vr2_outp;
 	 
 	 -- output one cell of instr mem:
 	 --led_vec <= imem_out; -- "00" & std_logic_vector(to_unsigned(imem_write_addr, 6));
@@ -326,10 +326,10 @@ begin
 					 imem_read_addr          <= 0;
 					 imem_in                 <= (others => '0');
 					 
-					 ram_we                 <= '0';
-					 ram_write_addr         <= 0;
-					 ram_read_addr          <= 0;
-					 ram_vec_in                 <= (others => '0');
+					 ram_we                  <= '0';
+					 ram_write_addr          <= 0;
+					 ram_read_addr           <= 0;
+					 ram_vec_in              <= (others => '0');
 					 
 					 cmem_we                 <= '0';
 					 cmem_write_addr         <= 0;
@@ -420,13 +420,13 @@ begin
 		     end if;
 			  
 		  when vr_adding_inter =>
+				vr1_enable         <= '0';
+				vr2_enable         <= '0';
 		      loopback_state     <= vr_adding;
 				
 		  when vr_adding =>
 		      alu_op1            <= vr1_popd;
 				alu_op2            <= vr2_popd;
-				vr1_enable         <= '0';
-				vr2_enable         <= '0';
 				loopback_state     <= vr_adding2;
 				
 		  when vr_adding2 =>
@@ -517,7 +517,13 @@ begin
           if uart_data_in_ack = '1' then
 			     uart_data_in_stb    <= '0';
 				  if send_ctr = 0 then			  
-			         loopback_state  <= idle;
+			         if s_empty = '1' then
+						    loopback_state  <= idle;
+						else
+						    s_enable        <= '1';
+							 s_command       <= '1';
+						    loopback_state  <= sending;
+						end if;
 						send_ctr        <= 8;
 				  else
 				      loopback_state  <= mock_state;
