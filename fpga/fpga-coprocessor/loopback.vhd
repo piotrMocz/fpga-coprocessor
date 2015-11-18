@@ -316,6 +316,8 @@ begin
 		 when processing2 =>
 		     loopback_state      <= reading;
 		     s_enable            <= '0';
+			  vr1_enable          <= '0';
+			  vr2_enable          <= '0';
 				    	 
 		 when reading =>
 		     if imem_out(7 downto 3) = "01000" then  -- "PUSH CASE"
@@ -324,14 +326,10 @@ begin
 		     elsif imem_out = "01011000" then
 					s_enable        <= '1';
 					s_command       <= '1';
-					vr1_enable      <= '1';
-					vr1_command     <= '0';
 					loopback_state  <= vr1moving;
 			  elsif imem_out = "01011001" then
 			      s_enable        <= '1';
 					s_command       <= '1';
-					vr2_enable      <= '1';
-					vr2_command     <= '0';
 					loopback_state  <= vr2moving;
 			  else
 			      -- read from memory:
@@ -346,8 +344,9 @@ begin
 				
 		  when vr2copying =>
 		      led_vec            <= s_popd(7 downto 0);
-				vr2_enable         <= '0';
-		      vr1_pushd          <= s_popd;
+				vr2_enable      <= '1';
+				vr2_command     <= '0';
+		      vr2_pushd          <= s_popd;
 				imem_read_addr     <= imem_read_addr + 1;
 		      loopback_state     <= processing2;		
 				
@@ -356,7 +355,8 @@ begin
 				loopback_state     <= vr1copying;
 				
 		  when vr1copying =>	
-				vr1_enable         <= '0';
+		  		vr1_enable      <= '1';
+				vr1_command     <= '0';
 		      vr1_pushd          <= s_popd;
 				imem_read_addr     <= imem_read_addr + 1;
 		      loopback_state     <= processing2;
