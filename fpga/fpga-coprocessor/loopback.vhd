@@ -87,12 +87,24 @@ architecture RTL of LOOPBACK is
 		  outp      : out std_logic_vector(7 downto 0)
         );
     end component;
+	 
+	 component ALU is
+    port (
+        -- CLOCK:
+	     clk        : in  std_logic;
+	     op1        : in  std_logic_vector(63 downto 0);
+	     op2        : in  std_logic_vector(63 downto 0);
+	     sum        : out std_logic_vector(63 downto 0);
+	     diffr      : out std_logic_vector(63 downto 0)
+    );
+    end component;
+
     
     ----------------------------------------------------------------------------
     -- UART signals
     ----------------------------------------------------------------------------
     
-	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying);
+	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying, vr_adding, vr_adding_inter, vr_adding2, vr_adding_fin);
 	 signal loopback_state               : state_t := idle;
 	 
 	 -- uart signals:
@@ -145,15 +157,20 @@ architecture RTL of LOOPBACK is
     signal vr2_pushd                  : std_logic_vector(63 downto 0) := (others => '0');
 	 
 	 -- misc signals:
-	 signal led_vec                  : std_logic_vector( 7 downto 0) := (others => '0');
-    signal buff                     : std_logic_vector( 7 downto 0) := (others => '0');
-	 signal consts                   : std_logic := '0';
-	 signal send_ctr                 : integer   := 8;
-	 signal send_buff                : std_logic_vector(63 downto 0) := (others => '0');
+	 signal led_vec                    : std_logic_vector( 7 downto 0) := (others => '0');
+    signal buff                       : std_logic_vector( 7 downto 0) := (others => '0');
+	 signal consts                     : std_logic := '0';
+	 signal send_ctr                   : integer   := 8;
+	 signal send_buff                  : std_logic_vector(63 downto 0) := (others => '0');
 	 
-	 signal stack_outp               : std_logic_vector(7 downto 0);
-	 signal vr1_outp               : std_logic_vector(7 downto 0);
-	 signal vr2_outp               : std_logic_vector(7 downto 0);
+	 signal stack_outp                 : std_logic_vector(7 downto 0);
+	 signal vr1_outp                   : std_logic_vector(7 downto 0);
+	 signal vr2_outp                   : std_logic_vector(7 downto 0);
+	 
+	 signal vr_sum                     : std_logic_vector(63 downto 0);
+	 signal vr_diffr                   : std_logic_vector(63 downto 0);
+	 signal alu_op1                    : std_logic_vector(63 downto 0);
+	 signal alu_op2                    : std_logic_vector(63 downto 0);
   
 begin
 
@@ -238,11 +255,21 @@ begin
  	    push_data => vr2_pushd,
  	    pop_data  => vr2_popd,
 		 outp      => vr2_outp
-   );
+    );
+	
+    alu_inst : ALU
+    port map (
+        clk      => CLOCK,
+	     op1      => alu_op1,
+	     op2      => alu_op2,
+	     sum      => vr_sum,
+	     diffr    => vr_diffr
+    );
 	 
 	 
 	 LEDS    <= led_vec;
-	 -- led_vec <= stack_outp;
+	 led_vec <= vr2_outp;
+	 
 	 -- output one cell of instr mem:
 	 --led_vec <= imem_out; -- "00" & std_logic_vector(to_unsigned(imem_write_addr, 6));
     
@@ -262,7 +289,7 @@ begin
 					 buff                    <= (others => '0');
 					 send_ctr                <= 8;
 					 send_buff               <= (others => '0');
-					 led_vec                 <= (others => '0');
+					 -- led_vec                 <= (others => '0');
 					 
 					 imem_we                 <= '0';
 					 imem_write_addr         <= 0;
@@ -273,6 +300,9 @@ begin
 					 cmem_write_addr         <= 0;
 					 cmem_read_addr          <= 0;
 					 cmem_in                 <= (others => '0');
+					 
+					 alu_op1                 <= (others => '0');
+					 alu_op2                 <= (others => '0');
             else
 				
 	      case loopback_state is
@@ -320,17 +350,24 @@ begin
 			  vr2_enable          <= '0';
 				    	 
 		 when reading =>
-		     if imem_out(7 downto 3) = "01000" then  -- "PUSH CASE"
+		     if imem_out(7 downto 3) = "01000" then  -- "PUSH [const]"
 					cmem_read_addr  <= to_integer(unsigned(imem_out(2 downto 0)));
 			      loopback_state  <= push;
-		     elsif imem_out = "01011000" then
+		     elsif imem_out = "01011000" then        -- MOVS1
 					s_enable        <= '1';
 					s_command       <= '1';
 					loopback_state  <= vr1moving;
-			  elsif imem_out = "01011001" then
+			  elsif imem_out = "01011001" then        -- MOVS2
 			      s_enable        <= '1';
 					s_command       <= '1';
 					loopback_state  <= vr2moving;
+			  elsif imem_out = "01110100" then        -- ADDS
+			      -- pop from both vr1 and vr2:
+					vr1_enable      <= '1';
+					vr1_command     <= '1';
+					vr2_enable      <= '1';
+					vr2_command     <= '1';
+					loopback_state  <= vr_adding_inter;
 			  else
 			      -- read from memory:
 			      s_enable        <= '1';
@@ -338,14 +375,37 @@ begin
 			      loopback_state  <= sending;
 		     end if;
 			  
+		  when vr_adding_inter =>
+		      loopback_state     <= vr_adding;
+				
+		  when vr_adding =>
+		      alu_op1            <= vr1_popd;
+				alu_op2            <= vr2_popd;
+				vr1_enable         <= '0';
+				vr2_enable         <= '0';
+				loopback_state     <= vr_adding2;
+				
+		  when vr_adding2 =>
+		      -- push the result to the main stack:
+				s_enable           <= '1';
+				s_command          <= '0';
+				s_pushd            <= vr_sum;
+				
+				imem_read_addr     <= imem_read_addr + 1;
+				loopback_state     <= vr_adding_fin;
+			
+		  when vr_adding_fin =>
+		      s_enable           <= '0';
+				loopback_state     <= processing2;
+			  
 		  when vr2moving =>
 		      s_enable           <= '0';
 				loopback_state     <= vr2copying;
 				
 		  when vr2copying =>
-		      led_vec            <= s_popd(7 downto 0);
-				vr2_enable      <= '1';
-				vr2_command     <= '0';
+		      -- led_vec            <= s_popd(7 downto 0);
+				vr2_enable         <= '1';
+				vr2_command        <= '0';
 		      vr2_pushd          <= s_popd;
 				imem_read_addr     <= imem_read_addr + 1;
 		      loopback_state     <= processing2;		
@@ -355,8 +415,8 @@ begin
 				loopback_state     <= vr1copying;
 				
 		  when vr1copying =>	
-		  		vr1_enable      <= '1';
-				vr1_command     <= '0';
+		  		vr1_enable         <= '1';
+				vr1_command        <= '0';
 		      vr1_pushd          <= s_popd;
 				imem_read_addr     <= imem_read_addr + 1;
 		      loopback_state     <= processing2;

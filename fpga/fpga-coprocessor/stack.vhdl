@@ -14,7 +14,7 @@ port (
 	push_data : in  std_logic_vector(63 downto 0);
 	pop_data  : out std_logic_vector(63 downto 0);
 	
-	outp      : out std_logic_vector(7 downto 0)
+	outp      : out std_logic_vector( 7 downto 0)
    );
 end stack;
 
@@ -66,6 +66,7 @@ begin
 			end if;
 			
 			s_outp <= std_logic_vector(to_unsigned(stack_ptr, 8));
+				 
 		end if;
 	end process;
 	
