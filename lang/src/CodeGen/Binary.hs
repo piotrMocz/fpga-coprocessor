@@ -17,24 +17,24 @@ instance {-# OVERLAPPING #-} Binary [ASMInstruction] where
   get    = undefined
 
 instance Binary ASMInstruction where
-  put Add                    = runBitPut $ putArray [0,1,1,1,1,1,1,0]
-  put Sub                    = runBitPut $ putArray [0,1,1,1,0,1,1,0]
-  put Mul                    = runBitPut $ putArray [0,1,1,1,1,0,1,0]
-  put Div                    = runBitPut $ putArray [0,1,1,1,0,0,1,0]
-  put AddS                   = runBitPut $ putArray [0,1,1,1,0,1,0,0]
-  put SubS                   = runBitPut $ putArray [0,1,1,1,1,1,0,0]
-  put MulS                   = runBitPut $ putArray [0,1,1,1,1,0,0,0]
-  put DivS                   = runBitPut $ putArray [0,1,1,1,0,0,0,0]
-  put MovS1                  = runBitPut $ putArray [0,1,0,1,1,0,0,0]
-  put MovS2                  = runBitPut $ putArray [0,1,0,1,1,0,0,1]
-  put (JumpIP i)             = runBitPut $ putArray [1,0] >> put6BitAdr i
-  put (JumpIPZ i)            = runBitPut $ putArray [1,1] >> put6BitAdr i
-  put (JumpZ (Lab i))        = runBitPut $ putArray [1,1] >> put6BitAdr i
-  put (Jump (Lab i))         = runBitPut $ putArray [1,0] >> put6BitAdr i
-  put (Label lab)            = runBitPut $ putArray [0,1,1,0,0,0,0,0]
-  put (Load (Addr i) size)   = runBitPut $ putArray [0,1,0,0,1] >> put3BitAdr i
-  put (Store (Addr i) size)  = runBitPut $ putArray [0,1,0,1,0] >> put3BitAdr i
-  put (Push (Addr i))        = runBitPut $ putArray [0,1,0,0,0] >> put3BitAdr i
+  put Add              = runBitPut $ putArray [0,1,1,1,1,1,1,0]
+  put Sub              = runBitPut $ putArray [0,1,1,1,0,1,1,0]
+  put Mul              = runBitPut $ putArray [0,1,1,1,1,0,1,0]
+  put Div              = runBitPut $ putArray [0,1,1,1,0,0,1,0]
+  put AddS             = runBitPut $ putArray [0,1,1,1,0,1,0,0]
+  put SubS             = runBitPut $ putArray [0,1,1,1,1,1,0,0]
+  put MulS             = runBitPut $ putArray [0,1,1,1,1,0,0,0]
+  put DivS             = runBitPut $ putArray [0,1,1,1,0,0,0,0]
+  put MovS1            = runBitPut $ putArray [0,1,0,1,1,0,0,0]
+  put MovS2            = runBitPut $ putArray [0,1,0,1,1,0,0,1]
+  put (JumpIP i)       = runBitPut $ putArray [1,0] >> put6BitAdr i
+  put (JumpIPZ i)      = runBitPut $ putArray [1,1] >> put6BitAdr i
+  put (JumpZ (Lab i))  = runBitPut $ putArray [1,1] >> put6BitAdr i
+  put (Jump (Lab i))   = runBitPut $ putArray [1,0] >> put6BitAdr i
+  put (Label lab)      = runBitPut $ putArray [0,1,1,0,0,0,0,0]
+  put (Load (Addr i))  = runBitPut $ putArray [0,1,0,0,1] >> put3BitAdr i
+  put (Store (Addr i)) = runBitPut $ putArray [0,1,0,1,0] >> put3BitAdr i
+  put (Push (Addr i))  = runBitPut $ putArray [0,1,0,0,0] >> put3BitAdr i
   get = undefined
 
 putArray :: [Int] -> BitPut ()
@@ -62,7 +62,7 @@ put3BitAdr i = do
       let fullAdr = replicate toAdd 0 ++ adr
       in putArray fullAdr
     else
-      error "Address of Push, Load or Store too big"
+      error $ "Address of Push, Load or Store too big " ++ (show toAdd) ++ " " ++ (show adr)
 
 
 toBin 0 = [0]

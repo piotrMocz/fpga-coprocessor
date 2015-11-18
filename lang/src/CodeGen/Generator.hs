@@ -52,7 +52,7 @@ type GeneratorState a  = ExceptT GeneratorError (State GeneratorData) a
 -- Processing AST
 --------------------------------------------------------------
 runASTTranslation :: AST.Module -> GeneratorData
-runASTTranslation ast = execState (runExceptT $ processAST ast) (emptyState (fmap Addr [1..100]) 10)
+runASTTranslation ast = execState (runExceptT $ processAST ast) (emptyState (fmap Addr [0..128]) 10)
 
 
 processAST :: AST.Module -> GeneratorState () -- ASM.ASMCode
@@ -66,7 +66,7 @@ processExpr expr = case expr of
     AST.VarE var         -> lookupVar var
     AST.Decl nm tp expr  -> createVar nm tp expr
     AST.Assign var expr  -> processExpr expr *> storeInstr var
-    AST.BinOp op l r     ->  processExpr l *> processExpr r *> (if AST.isScalarOp op then processOp else unvectorizeOp) op
+    AST.BinOp op l r     -> processExpr l *> processExpr r *> (if AST.isScalarOp op then processOp else unvectorizeOp) op
     AST.If   cond ts fs  -> processIf cond ts fs
     AST.Loop cond body   -> processLoop cond body
     _                    -> throwE $ GeneratorError "Instruction not yet implemented"
@@ -102,11 +102,22 @@ createVar :: AST.VarName -> AST.Type -> AST.Expr -> GeneratorState ()
 createVar nm tp expr = do
     let size = typeSize tp
     addr <- getAvailableAddr size
+    let vecLen = (size - 1) `div` 8
     processExpr expr
     pushVarInfo  $ VarInfo nm addr size
-    pushASMInstr $ ASM.Store addr size
+    mapM_ (loadInst addr) [0..vecLen]
+      where loadInst (Addr i) offset = pushASMInstr $ ASM.Store (Addr $ i + offset)
 
 
+{-
+storeInstr :: AST.VarName -> GeneratorState ()
+storeInstr var = do
+     firstAdr <- lookupAddr var
+     len <- lookupLen var
+     let vecLen = (len - 1) `div` 8
+     mapM_ (loadInst firstAdr) [0..vecLen]
+      where loadInst (Addr i) offset = pushASMInstr $ ASM.Store (Addr $ i + offset)
+      -}
 --------------------------------------------------------------
 -- Utility state functions
 --------------------------------------------------------------
@@ -122,12 +133,13 @@ getAvailableAddr :: Int -> GeneratorState Addr
 getAvailableAddr size = do
     st <- get
     let addr = st ^. avAddrs
-    if length addr < size
+    let vecSize = (size-1) `div` 8 + 1
+    if length addr < vecSize
       then
         throwE $ GeneratorError "No more address space for new variables"
       else
           do
-            let newSt = st & avAddrs .~ (drop size addr )
+            let newSt = st & avAddrs .~ (drop vecSize addr )
             put newSt
             return . head $ addr
 
@@ -149,10 +161,12 @@ pushVarInfo vInfo = do
 
 
 storeInstr :: AST.VarName -> GeneratorState ()
-storeInstr nm = do
-    adr <- lookupAddr nm
-    len <- lookupLen nm
-    pushASMInstr $ ASM.Store adr len
+storeInstr var = do
+     firstAdr <- lookupAddr var
+     len <- lookupLen var
+     let vecLen = (len - 1) `div` 8
+     mapM_ (loadInst firstAdr) [0..vecLen]
+      where loadInst (Addr i) offset = pushASMInstr $ ASM.Store (Addr $ i + offset)
 
 
 lookupAddr :: AST.VarName -> GeneratorState Addr
@@ -174,11 +188,11 @@ lookupLen nm = do
 
 lookupVar :: AST.VarName -> GeneratorState ()
 lookupVar var = do
-    st <- get
-    case Map.lookup var (st ^. symTable) of
-        Nothing    -> throwE . GeneratorError $ "Using undeclared variable name: " ++ var
-        Just vInfo -> pushASMInstr $ ASM.Load (vInfo ^. varAddr) (vInfo ^. varLen) -- TODO this function can be
-                                                                  -- generic with respect to var type
+    firstAdr <- lookupAddr var
+    len <- lookupLen var
+    let vecLen = (len - 1) `div` 8
+    mapM_ (loadInst firstAdr) [0..vecLen]
+     where loadInst (Addr i) offset = pushASMInstr $ ASM.Load (Addr $ i + offset)
 
 push :: Int -> GeneratorState ()
 push i = do
@@ -275,5 +289,5 @@ getTwoStackOp (AST.Div _) = ASM.DivS
 times = replicateM_
 
 typeSize :: AST.Type -> Int
-typeSize AST.Scalar = 1
+typeSize AST.Scalar = 8
 typeSize (AST.Vector n) = fromIntegral n

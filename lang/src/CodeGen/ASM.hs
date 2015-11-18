@@ -51,8 +51,8 @@ unLabel (Label (Lab i)) = i
 unLabel _               = error "Cannot unlabel a nonlabel"
 
 
-data ASMInstruction = Load    { addr  :: Addr  , size :: Int }   -- 0
-                    | Store   { vaddr :: Addr  , size :: Int }   -- 1
+data ASMInstruction = Load    { addr  :: Addr  }   -- 0
+                    | Store   { vaddr :: Addr  }   -- 1
                     | Push    { vaddr :: Addr                }   -- 2
                     | MovS1                        -- pop from the main stack and push onto the 1st helper stack
                     | MovS2                        -- as above but the 2nd stack
@@ -99,8 +99,8 @@ instance MakeASM Lab where
 
 
 instance MakeASM ASMInstruction where
-    makeASM (Load    addr size) = "LD "    ++ makeASM addr ++ " size " ++ (show size)
-    makeASM (Store   addr size) = "ST "    ++ makeASM addr ++ " size " ++ (show size)
+    makeASM (Load    addr     ) = "LD "    ++ makeASM addr
+    makeASM (Store   addr     ) = "ST "    ++ makeASM addr
     makeASM (Push    val      ) = "PUSH "  ++ makeASM val
     makeASM  MovS1              = "MOVS1"
     makeASM  MovS2              = "MOVS2"
