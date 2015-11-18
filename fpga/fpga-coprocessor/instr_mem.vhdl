@@ -28,10 +28,6 @@ begin
 	   if rising_edge(clk) then
 		   if we = '1' then
 			   ram_block(write_addr) <= instr_mem_in;
-				
---				if write_addr < 63 then
---				   write_addr            <= write_addr + 1;
---				end if;
 			end if;
 			
 			instr_mem_out <= ram_block(read_addr);
