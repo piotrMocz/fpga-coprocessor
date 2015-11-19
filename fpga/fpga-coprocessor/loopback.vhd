@@ -116,7 +116,7 @@ architecture RTL of LOOPBACK is
     -- UART signals
     ----------------------------------------------------------------------------
     
-	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying, vr_adding, vr_adding_inter, vr_adding2, vr_adding_fin, storing, storing2, loading, loading2);
+	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying, vr_adding, vr_adding_inter, vr_adding2, vr_adding_fin, storing, storing2, loading, loading2, subbing, subbing_pre1, subbing_pre2, subbing_pre3, subbing_pre4);
 	 signal loopback_state               : state_t := idle;
 	 
 	 -- uart signals:
@@ -404,6 +404,12 @@ begin
 					vr2_enable      <= '1';
 					vr2_command     <= '1';
 					loopback_state  <= vr_adding_inter;
+					
+			  elsif imem_out = "01110110" then          -- SUB
+			      s_enable        <= '1';
+					s_command       <= '1'; -- (pop)
+					loopback_state  <= subbing_pre1;		
+					
 			  elsif imem_out(7 downto 3) = "01010" then -- STORE
 			      s_enable        <= '1';
 					s_command       <= '1';
@@ -418,6 +424,33 @@ begin
 			      s_command       <= '1';
 			      loopback_state  <= sending;
 		     end if;
+			  
+		  ---- SUBTRACTION -----------------------------------------------------------------  
+		  when subbing_pre1 =>
+		      s_enable           <= '0';
+				loopback_state     <= subbing_pre2;
+		  
+		  when subbing_pre2 =>
+		      alu_op2            <= s_popd;
+				s_enable           <= '1';
+				s_command          <= '1'; -- (pop the next one)
+				loopback_state     <= subbing_pre3;
+		
+		  when subbing_pre3 =>
+		      s_enable           <= '0';
+				loopback_state     <= subbing_pre4;
+				
+		  when subbing_pre4 =>
+		      alu_op1            <= s_popd;
+			   loopback_state     <= subbing;
+				
+		  when subbing =>
+		      s_enable           <= '1';
+				s_command          <= '0'; -- push the result
+            s_pushd            <= vr_diffr;
+				imem_read_addr     <= imem_read_addr + 1;
+				loopback_state     <= processing2;	  
+		  -----------------------------------------------------------------	  
 			  
 		  when vr_adding_inter =>
 				vr1_enable         <= '0';
