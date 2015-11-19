@@ -60,7 +60,6 @@ int main(int argc, char* argv[])
         	return 1;
         }
         printf("%u\n", received);
-        printf("\nreclen %d\n", reclen);
     }while(reclen > 0);
         // close UART: ----------------------------------
 	koniec:

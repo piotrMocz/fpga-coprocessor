@@ -105,7 +105,7 @@ createVar nm tp expr = do
     let vecLen = (size - 1) `div` 8
     processExpr expr
     pushVarInfo  $ VarInfo nm addr size
-    mapM_ (loadInst addr) [0..vecLen]
+    mapM_ (loadInst addr) (reverse [0..vecLen])
       where loadInst (Addr i) offset = pushASMInstr $ ASM.Store (Addr $ i + offset)
 
 
@@ -165,7 +165,7 @@ storeInstr var = do
      firstAdr <- lookupAddr var
      len <- lookupLen var
      let vecLen = (len - 1) `div` 8
-     mapM_ (loadInst firstAdr) [0..vecLen]
+     mapM_ (loadInst firstAdr) (reverse [0..vecLen])
       where loadInst (Addr i) offset = pushASMInstr $ ASM.Store (Addr $ i + offset)
 
 
