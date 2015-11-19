@@ -116,7 +116,7 @@ architecture RTL of LOOPBACK is
     -- UART signals
     ----------------------------------------------------------------------------
     
-	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying, vr_adding, vr_adding_inter, vr_adding2, vr_adding_fin, storing, storing2, loading, loading2, subbing, subbing_pre1, subbing_pre2, subbing_pre3, subbing_pre4);
+	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying, vr_adding, vr_adding_inter, vr_adding2, vr_adding_fin, storing, storing2, loading, loading2, subbing, subbing_pre1, subbing_pre2, subbing_pre3, subbing_pre4, checking_zero1, checking_zero2);
 	 signal loopback_state               : state_t := idle;
 	 
 	 -- uart signals:
@@ -321,6 +321,10 @@ begin
 					 send_buff               <= (others => '0');
 					 -- led_vec                 <= (others => '0');
 					 
+					 s_enable                <= '0';
+					 s_command               <= '0';
+					 s_pushd                 <= (others => '0');
+					 
 					 imem_we                 <= '0';
 					 imem_write_addr         <= 0;
 					 imem_read_addr          <= 0;
@@ -418,14 +422,25 @@ begin
 			  elsif imem_out(7 downto 3) = "01001" then  -- LOAD
 			      ram_read_addr   <= to_integer(unsigned(imem_out(2 downto 0)));
 					loopback_state  <= loading;
-					
+			  
+			  elsif imem_out = "11111111" then           -- STOP
+			      -- read from memory:
+			      s_enable        <= '1';
+			      s_command       <= '1';
+			      loopback_state  <= sending; 
+			 
 			  elsif imem_out(7 downto 6) = "10" then   -- JUMP
 			      imem_read_addr  <= to_integer(unsigned(imem_out(5 downto 0)));
 					loopback_state  <= processing2;
 			  
+			  elsif imem_out(7 downto 6) = "11" then   -- JUMPZ
+			      s_enable        <= '1';
+					s_command       <= '1';
+					loopback_state  <= checking_zero1;
+			  
 			  elsif imem_out(7 downto 0) = "01100000" then -- LAB
                imem_read_addr  <= imem_read_addr + 1;
-               loopback_state  <= processing2;
+               loopback_state  <= processing2;	
 					
 			  else                                         -- STOP
 			      -- read from memory:
@@ -433,6 +448,19 @@ begin
 			      s_command       <= '1';
 			      loopback_state  <= sending;
 		     end if;
+			  
+		  ---- JUMPZ -----------------------------------------------------------------------
+		  when checking_zero1 =>
+		      s_enable           <= '0';
+				loopback_state     <= checking_zero2;
+				
+		  when checking_zero2 =>
+				if s_popd(63 downto 56) = "00000000" then
+                imem_read_addr <= to_integer(unsigned(imem_out(5 downto 0))); -- do the jump
+				else
+                imem_read_addr <= imem_read_addr + 1;  -- no jump
+				end if;
+            loopback_state     <= processing2;
 			  
 		  ---- SUBTRACTION -----------------------------------------------------------------  
 		  when subbing_pre1 =>
