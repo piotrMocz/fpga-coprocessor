@@ -415,10 +415,19 @@ begin
 					s_command       <= '1';
 					ram_write_addr  <= to_integer(unsigned(imem_out(2 downto 0)));
 					loopback_state  <= storing;
-			  elsif imem_out(7 downto 3) = "01001" then
+			  elsif imem_out(7 downto 3) = "01001" then  -- LOAD
 			      ram_read_addr   <= to_integer(unsigned(imem_out(2 downto 0)));
 					loopback_state  <= loading;
-			  else
+					
+			  elsif imem_out(7 downto 6) = "10" then   -- JUMP
+			      imem_read_addr  <= to_integer(unsigned(imem_out(5 downto 0)));
+					loopback_state  <= processing2;
+			  
+			  elsif imem_out(7 downto 0) = "01100000" then -- LAB
+               imem_read_addr  <= imem_read_addr + 1;
+               loopback_state  <= processing2;
+					
+			  else                                         -- STOP
 			      -- read from memory:
 			      s_enable        <= '1';
 			      s_command       <= '1';
