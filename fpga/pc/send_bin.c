@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
 	}
 
 	int reclen;
-	char received;
+	unsigned char received;
     do{
         reclen = read(uart0_filestream, &received,  1);
         if (reclen < 0){
