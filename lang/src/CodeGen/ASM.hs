@@ -69,6 +69,9 @@ data ASMInstruction = Load    { addr  :: Addr  }   -- 0
                     | SubS -- as above, subtract
                     | MulS -- multiply
                     | DivS -- divide
+                    | RotS -- Roatation
+                    | DotPr -- dotProduct
+                    | ModS  -- modulo
                     deriving (Eq, Ord)
 
 
@@ -117,6 +120,9 @@ instance MakeASM ASMInstruction where
     makeASM  SubS               = "SUBS"
     makeASM  MulS               = "MULS"
     makeASM  DivS               = "DIVS"
+    makeASM  RotS               = "RotS"
+    makeASM  ModS               = "ModS"
+    makeASM  DotPr              = "DotProduct"
 
 
 instance Show ASMInstruction where

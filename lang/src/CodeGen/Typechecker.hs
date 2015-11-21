@@ -52,10 +52,13 @@ typeCheck (BinOp op expr1 expr2) = do
     if t1 /= t2
       then throwE . TypecheckerError $ show t1 <> "and" <> show t2 <> "differ."
       else case op of
-              Mul _ -> return (BinOp (Mul t1) e1 e2 )
-              Add _ -> return (BinOp (Add t1) e1 e2 )
-              Sub _ -> return (BinOp (Sub t1) e1 e2 )
-              Div _ -> return (BinOp (Div t1) e1 e2 )
+              Mul _   -> return (BinOp (Mul   t1) e1 e2 )
+              Add _   -> return (BinOp (Add   t1) e1 e2 )
+              Sub _   -> return (BinOp (Sub   t1) e1 e2 )
+              DotPr _ -> return (BinOp (DotPr t1) e1 e2 )
+              Div _   -> return (BinOp (Div   t1) e1 e2 )
+              Mod _   -> return (BinOp (Mod   t1) e1 e2 )
+              Rot _   -> return (BinOp (Rot   t1) e1 e2 )
 
 typeCheck (If cond t f) =
     if null t || null f
@@ -93,10 +96,13 @@ infer (BinOp op expr1 expr2) = do
     if tp1 /= tp2
       then throwE . TypecheckerError $ show tp1 <> "and" <> show tp2 <> "differ."
       else case op of
-              Mul _ -> return Scalar
-              Add x -> return x
-              Sub x -> return x
-              Div x -> return x
+              Mul x   -> return x
+              Add x   -> return x
+              Sub x   -> return x
+              Div x   -> return x
+              DotPr x -> return x
+              Mod x   -> return x
+              Rot x   -> return x
 
 infer (If _ t _) = infer . last $ t
 

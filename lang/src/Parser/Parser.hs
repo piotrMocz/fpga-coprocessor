@@ -83,10 +83,13 @@ aExpression :: Parser A.Expr
 aExpression = buildExpressionParser aOperators aTerm
 
 
-aOperators = [ [Infix  (L.reservedOp "*"   >> return (A.BinOp (A.Mul def))) AssocLeft,
-                Infix  (L.reservedOp "/"   >> return (A.BinOp (A.Div def))) AssocLeft]
-             , [Infix  (L.reservedOp "+"   >> return (A.BinOp (A.Add def))) AssocLeft,
-                Infix  (L.reservedOp "-"   >> return (A.BinOp (A.Sub def))) AssocLeft]
+aOperators = [ [Infix  (L.reservedOp "*"   >> return (A.BinOp (A.Mul   def))) AssocLeft,
+                Infix  (L.reservedOp "/"   >> return (A.BinOp (A.Div   def))) AssocLeft,
+                Infix  (L.reservedOp "%"   >> return (A.BinOp (A.Mod   def))) AssocLeft,
+                Infix  (L.reservedOp "?"   >> return (A.BinOp (A.DotPr def))) AssocLeft]
+             , [Infix  (L.reservedOp "+"   >> return (A.BinOp (A.Add   def))) AssocLeft,
+                Infix  (L.reservedOp "-"   >> return (A.BinOp (A.Sub   def))) AssocLeft]
+             , [Infix  (L.reservedOp "&"   >> return (A.BinOp (A.Rot   def))) AssocLeft]
               ]
 
 

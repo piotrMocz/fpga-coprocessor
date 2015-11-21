@@ -92,10 +92,10 @@ processIf cond ts fs = do
 
 processOp :: AST.Op -> GeneratorState ()
 processOp op = pushASMInstr $ case op of
-                   AST.Add _ -> ASM.Add
-                   AST.Sub _ -> ASM.Sub
-                   AST.Mul _ -> ASM.Mul
-                   AST.Div _ -> ASM.Div
+                   AST.Add   _ -> ASM.Add
+                   AST.Sub   _ -> ASM.Sub
+                   AST.Mul   _ -> ASM.Mul
+                   AST.Div   _ -> ASM.Div
 
 
 createVar :: AST.VarName -> AST.Type -> AST.Expr -> GeneratorState ()
@@ -272,16 +272,19 @@ unvectorizeOp op = do
 
     len `times` (pushASMInstr $ getTwoStackOp op)
     case op of
-      AST.Mul _ -> (len - 1) `times` (pushASMInstr ASM.Add)
+      AST.DotPr _ -> (len - 1) `times` (pushASMInstr ASM.Add)
       _ -> return ()
 
 
 
 getTwoStackOp :: AST.Op -> ASM.ASMInstruction
-getTwoStackOp (AST.Add _) = ASM.AddS
-getTwoStackOp (AST.Sub _) = ASM.SubS
-getTwoStackOp (AST.Mul _) = ASM.MulS
-getTwoStackOp (AST.Div _) = ASM.DivS
+getTwoStackOp (AST.Add   _)   = ASM.AddS
+getTwoStackOp (AST.Sub   _)   = ASM.SubS
+getTwoStackOp (AST.Mul   _)   = ASM.MulS
+getTwoStackOp (AST.Div   _)   = ASM.DivS
+getTwoStackOp (AST.Rot   _)   = ASM.RotS
+getTwoStackOp (AST.Mod   _)   = ASM.ModS
+getTwoStackOp (AST.DotPr _)   = ASM.DotPr
 
 
 -- repeat n times:

@@ -20,8 +20,8 @@ data Expr = Lit Int16
 type VarName = String
 data Type    = Scalar | Vector Int16 deriving (Show, Eq, Ord)
 
-
-data Op = Add Type | Sub Type | Mul Type | Div Type deriving (Show, Eq, Ord)
+--        +          -          *          /         %          &           ?
+data Op = Add Type | Sub Type | Mul Type | Div Type | Mod Type | Rot Type | DotPr Type deriving (Show, Eq, Ord)
 
 
 instance Default Type where
@@ -39,14 +39,17 @@ loopIf lab cond =
 
 opLen :: Op -> Int
 opLen op = case op of
-    Add Scalar     -> 1
-    Sub Scalar     -> 1
-    Mul Scalar     -> 1
-    Div Scalar     -> 1
-    Add (Vector n) -> fromIntegral n
-    Sub (Vector n) -> fromIntegral n
-    Mul (Vector n) -> fromIntegral n
-    Div (Vector n) -> fromIntegral n
+    Add Scalar       -> 1
+    Sub Scalar       -> 1
+    Mul Scalar       -> 1
+    Div Scalar       -> 1
+    Add (Vector n)   -> fromIntegral n
+    Sub (Vector n)   -> fromIntegral n
+    Mul (Vector n)   -> fromIntegral n
+    Div (Vector n)   -> fromIntegral n
+    Mod (Vector n)   -> fromIntegral n
+    Rot (Vector n)   -> fromIntegral n
+    DotPr (Vector n) -> fromIntegral n
     _              -> -1
 
 isScalarOp :: Op -> Bool
@@ -55,10 +58,7 @@ isScalarOp op = case op of
     Sub Scalar     -> True
     Mul Scalar     -> True
     Div Scalar     -> True
-    Add (Vector n) -> False
-    Sub (Vector n) -> False
-    Mul (Vector n) -> False
-    Div (Vector n) -> False
+    DotPr Scalar   -> True
     _              -> False
 
 
