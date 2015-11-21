@@ -107,7 +107,11 @@ architecture RTL of LOOPBACK is
 	     op1        : in  std_logic_vector(63 downto 0);
 	     op2        : in  std_logic_vector(63 downto 0);
 	     sum        : out std_logic_vector(63 downto 0);
-	     diffr      : out std_logic_vector(63 downto 0)
+	     diffr      : out std_logic_vector(63 downto 0);
+		  prod       : out std_logic_vector(63 downto 0);
+        division   : out std_logic_vector(63 downto 0);
+	     modulo     : out std_logic_vector(63 downto 0);
+        scalarProd : out std_logic_vector(63 downto 0)
     );
     end component;
 
@@ -116,7 +120,7 @@ architecture RTL of LOOPBACK is
     -- UART signals
     ----------------------------------------------------------------------------
     
-	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying, vr_adding, vr_adding_inter, vr_adding2, vr_adding_fin, storing, storing2, loading, loading2, subbing, subbing_pre1, subbing_pre2, subbing_pre3, subbing_pre4, checking_zero1, checking_zero2);
+	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying, vr_binOp, vr_binOp_inter, vr_binOp2, vr_binOp_fin, storing, storing2, loading, loading2, scalarOp_main, scalarOp_pre1, scalarOp_pre2, scalarOp_pre3, scalarOp_pre4, checking_zero1, checking_zero2);
 	 signal loopback_state               : state_t := idle;
 	 
 	 -- uart signals:
@@ -188,6 +192,11 @@ architecture RTL of LOOPBACK is
 	 
 	 signal vr_sum                     : std_logic_vector(63 downto 0);
 	 signal vr_diffr                   : std_logic_vector(63 downto 0);
+	 signal vr_prod                    : std_logic_vector(63 downto 0);
+	 signal vr_division                : std_logic_vector(63 downto 0);
+	 signal vr_modulo                  : std_logic_vector(63 downto 0);
+	 signal vr_scalarProd              : std_logic_vector(63 downto 0);
+	 
 	 signal alu_op1                    : std_logic_vector(63 downto 0) := (others => '0');
 	 signal alu_op2                    : std_logic_vector(63 downto 0) := (others => '0');
   
@@ -289,11 +298,15 @@ begin
 	
     alu_inst : ALU
     port map (
-        clk      => CLOCK,
-	     op1      => alu_op1,
-	     op2      => alu_op2,
-	     sum      => vr_sum,
-	     diffr    => vr_diffr
+        clk        => CLOCK,
+	     op1        => alu_op1,
+	     op2        => alu_op2,
+	     sum        => vr_sum,
+	     diffr      => vr_diffr,
+		  prod       => vr_prod,
+		  division   => vr_division,
+		  modulo     => vr_modulo,
+		  scalarProd => vr_scalarProd
     );
 	 
 	 
@@ -401,18 +414,26 @@ begin
 			      s_enable        <= '1';
 					s_command       <= '1';
 					loopback_state  <= vr2moving;
-			  elsif imem_out = "01110100" then        -- ADDS
-			      -- pop from both vr1 and vr2:
+					
+			  elsif imem_out = "01110100"   --ADDS
+			     or imem_out = "01110101"   --MODS
+				  or imem_out = "01111001"   --DOTPRODUCT
+				  or imem_out = "01111000"   --MULS
+				  or imem_out = "01111100"   --SUBS
+				  or imem_out = "01110000"   --DIVS
+				  then
 					vr1_enable      <= '1';
 					vr1_command     <= '1';
 					vr2_enable      <= '1';
 					vr2_command     <= '1';
-					loopback_state  <= vr_adding_inter;
+					loopback_state  <= vr_binOp_inter;
 					
-			  elsif imem_out = "01110110" then          -- SUB
+			  elsif imem_out = "01110110" -- SUB
+			     or imem_out = "01111110" -- ADD
+				  then          
 			      s_enable        <= '1';
 					s_command       <= '1'; -- (pop)
-					loopback_state  <= subbing_pre1;		
+					loopback_state  <= scalarOp_pre1;		
 					
 			  elsif imem_out(7 downto 3) = "01010" then -- STORE
 			      s_enable        <= '1';
@@ -462,56 +483,71 @@ begin
 				end if;
             loopback_state     <= processing2;
 			  
-		  ---- SUBTRACTION -----------------------------------------------------------------  
-		  when subbing_pre1 =>
+		  --SCALAR---BINOP---------------------------------------------  
+		  when scalarOp_pre1 =>
 		      s_enable           <= '0';
-				loopback_state     <= subbing_pre2;
+				loopback_state     <= scalarOp_pre2;
 		  
-		  when subbing_pre2 =>
+		  when scalarOp_pre2 =>
 		      alu_op2            <= s_popd;
 				s_enable           <= '1';
 				s_command          <= '1'; -- (pop the next one)
-				loopback_state     <= subbing_pre3;
+				loopback_state     <= scalarOp_pre3;
 		
-		  when subbing_pre3 =>
+		  when scalarOp_pre3 =>
 		      s_enable           <= '0';
-				loopback_state     <= subbing_pre4;
+				loopback_state     <= scalarOp_pre4;
 				
-		  when subbing_pre4 =>
+		  when scalarOp_pre4 =>
 		      alu_op1            <= s_popd;
-			   loopback_state     <= subbing;
+			   loopback_state     <= scalarOp_main;
 				
-		  when subbing =>
+		  when scalarOp_main =>
 		      s_enable           <= '1';
 				s_command          <= '0'; -- push the result
-            s_pushd            <= vr_diffr;
+				if imem_out = "01110110"
+			       then s_pushd   <= vr_diffr;	-- SUB
+			   elsif imem_out = "01111110"      -- ADD
+                then s_pushd   <= vr_sum;
+				end if;
 				imem_read_addr     <= imem_read_addr + 1;
 				loopback_state     <= processing2;	  
-		  -----------------------------------------------------------------	  
-			  
-		  when vr_adding_inter =>
+		  
+		  --VECTOR---BINOP---------------------------------------------	    
+		  when vr_binOp_inter =>
 				vr1_enable         <= '0';
 				vr2_enable         <= '0';
-		      loopback_state     <= vr_adding;
+		      loopback_state     <= vr_binOp;
 				
-		  when vr_adding =>
+		  when vr_binOp =>
 		      alu_op1            <= vr1_popd;
 				alu_op2            <= vr2_popd;
-				loopback_state     <= vr_adding2;
+				loopback_state     <= vr_binOp2;
 				
-		  when vr_adding2 =>
-		      -- push the result to the main stack:
+		  when vr_binOp2 =>
 				s_enable           <= '1';
 				s_command          <= '0';
-				s_pushd            <= vr_sum;
+				if imem_out = "01110100"      --ADDS
+				    then s_pushd   <= vr_sum;
+			   elsif imem_out = "01110101"   --MODS
+				    then s_pushd   <= vr_modulo;  
+				elsif imem_out = "01111001"   --DOTPRODUCT
+				    then s_pushd   <= vr_scalarProd;
+				elsif imem_out = "01111000"   --MULS
+				    then s_pushd   <= vr_prod;
+				elsif imem_out = "01111100"   --SUBS
+				    then s_pushd   <= vr_diffr;
+				else                          --DIVS
+				    s_pushd            <= vr_division;
+			   end if;
 				
 				imem_read_addr     <= imem_read_addr + 1;
-				loopback_state     <= vr_adding_fin;
+				loopback_state     <= vr_binOp_fin;
 			
-		  when vr_adding_fin =>
+		  when vr_binOp_fin =>
 		      s_enable           <= '0';
-				loopback_state     <= processing2;
-			  
+				loopback_state     <= processing2;		
+       --------------------------------------------------------
 		  when vr2moving =>
 		      s_enable           <= '0';
 				loopback_state     <= vr2copying;
