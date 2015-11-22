@@ -52,15 +52,43 @@ int main(int argc, char* argv[])
 	}
 
 	int reclen;
-	unsigned char received;
-    do{
-        reclen = read(uart0_filestream, &received,  1);
+	unsigned char received[256];
+        unsigned char reversed[256];
+        memset(reversed, 0, 256);
+        memset(received, 0, 256);
+        int rec_idx = 0;
+    
+    while (1) {
+        reclen = read(uart0_filestream, received + rec_idx,  1);
         if (reclen < 0){
         	printf("Error while receiving.\n");
         	return 1;
         }
-        printf("%u\n", received);
-    }while(reclen > 0);
+
+        if (reclen == 0 || rec_idx == 255) break; // shouldn't really happen but still...
+        if (received[rec_idx] == 255) { 
+            received[rec_idx] = 0;
+            break;
+        }
+
+        rec_idx++;
+        // printf("%u\n", received[rec_idx-1]);
+    }
+
+    int idx = 0;
+    int start = (rec_idx % 8 == 0) ? (rec_idx / 8 - 1) : (rec_idx / 8);
+    for (int i = start; i >= 0; i--)
+        for (int j = 0; j < 8; j++)
+            reversed[idx++] = received[i*8 + j];
+
+    printf("[");        
+    for (int i = 0; i < idx; i++) {
+        printf("%u", reversed[i]);
+        if (i != idx-1) printf(", ");
+    }
+
+    printf("]\n");
+
         // close UART: ----------------------------------
 	koniec:
 	close(uart0_filestream);

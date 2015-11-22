@@ -37,7 +37,7 @@ instance Binary ASMInstruction where
   put (Label lab)      = runBitPut $ putArray [0,1,1,0,0,0,0,0]
   put (Load (Addr i))  = runBitPut $ putArray [0,1,0,0,1] >> put3BitAdr i
   put (Store (Addr i)) = runBitPut $ putArray [0,1,0,1,0] >> put3BitAdr i
-  put (Push (Addr i))  = runBitPut $ putArray [0,1,0,0,0] >> put3BitAdr i
+  put (Push (Addr i))  = runBitPut $ putArray [0,0,1,0] >> put4BitAdr i
   get = undefined
 
 putArray :: [Int] -> BitPut ()
@@ -66,6 +66,19 @@ put3BitAdr i = do
       in putArray fullAdr
     else
       error $ "Address of Push, Load or Store too big " ++ (show toAdd) ++ " " ++ (show adr)
+
+
+put4BitAdr :: Int -> BitPut ()
+put4BitAdr i = do
+  let adr = toBin i
+  let toAdd = 4 - (length adr)
+  if toAdd >= 0
+    then
+      let fullAdr = replicate toAdd 0 ++ adr
+      in putArray fullAdr
+    else
+      error $ "Address of Push, Load or Store too big " ++ (show toAdd) ++ " " ++ (show adr)
+
 
 
 toBin 0 = [0]
