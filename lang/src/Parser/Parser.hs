@@ -70,6 +70,12 @@ assignStmt =
      expr <- aExpression
      return $ A.Assign var expr
 
+rot90Stmt :: Parser A.Expr
+rot90Stmt =
+  do L.reservedOp "rot90"
+     expr <- aExpression
+     return $ A.Rot expr
+
 declStmt :: Parser A.Expr
 declStmt =
     do var <- L.identifier
@@ -89,7 +95,6 @@ aOperators = [ [Infix  (L.reservedOp "*"   >> return (A.BinOp (A.Mul   def))) As
                 Infix  (L.reservedOp "?"   >> return (A.BinOp (A.DotPr def))) AssocLeft]
              , [Infix  (L.reservedOp "+"   >> return (A.BinOp (A.Add   def))) AssocLeft,
                 Infix  (L.reservedOp "-"   >> return (A.BinOp (A.Sub   def))) AssocLeft]
-             , [Infix  (L.reservedOp "&"   >> return (A.BinOp (A.Rot   def))) AssocLeft]
               ]
 
 
@@ -99,8 +104,10 @@ aTerm =  L.parens aExpression
      <|> try declStmt
      <|> try ifStmt
      <|> try loopStmt
+     <|> try rot90Stmt
      <|> liftM A.VarE L.identifier
      <|> liftM (A.Lit . fromInteger) L.integer
+
 
 
 

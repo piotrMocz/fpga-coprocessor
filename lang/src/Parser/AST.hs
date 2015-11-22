@@ -14,6 +14,7 @@ data Expr = Lit Int16
           | Assign VarName Expr
           | Decl VarName Type Expr
           | Loop Expr [Expr]
+          | Rot Expr
           deriving (Show, Eq, Ord)
 
 
@@ -21,7 +22,7 @@ type VarName = String
 data Type    = Scalar | Vector Int16 deriving (Show, Eq, Ord)
 
 --        +          -          *          /         %          &           ?
-data Op = Add Type | Sub Type | Mul Type | Div Type | Mod Type | Rot Type | DotPr Type deriving (Show, Eq, Ord)
+data Op = Add Type | Sub Type | Mul Type | Div Type | Mod Type | DotPr Type deriving (Show, Eq, Ord)
 
 
 instance Default Type where
@@ -48,7 +49,6 @@ opLen op = case op of
     Mul (Vector n)   -> fromIntegral n
     Div (Vector n)   -> fromIntegral n
     Mod (Vector n)   -> fromIntegral n
-    Rot (Vector n)   -> fromIntegral n
     DotPr (Vector n) -> fromIntegral n
     _              -> -1
 

@@ -58,7 +58,11 @@ typeCheck (BinOp op expr1 expr2) = do
               DotPr _ -> return (BinOp (DotPr t1) e1 e2 )
               Div _   -> return (BinOp (Div   t1) e1 e2 )
               Mod _   -> return (BinOp (Mod   t1) e1 e2 )
-              Rot _   -> return (BinOp (Rot   t1) e1 e2 )
+
+typeCheck (Rot expr) = do
+  e1 <- typeCheck expr
+  return $ Rot e1
+
 
 typeCheck (If cond t f) =
     if null t || null f
@@ -102,12 +106,12 @@ infer (BinOp op expr1 expr2) = do
               Div x   -> return x
               DotPr x -> return x
               Mod x   -> return x
-              Rot x   -> return x
+
+infer (Rot x) = infer x
 
 infer (If _ t _) = infer . last $ t
 
 infer (Loop _ _) = throwE . TypecheckerError $ "Loops dont return values, sir."
-
 
 insertNewValue :: VarName -> Type -> TypeState ()
 insertNewValue nm tp = do

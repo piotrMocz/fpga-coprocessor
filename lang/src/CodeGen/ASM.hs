@@ -69,7 +69,7 @@ data ASMInstruction = Load    { addr  :: Addr  }   -- 0
                     | SubS -- as above, subtract
                     | MulS -- multiply
                     | DivS -- divide
-                    | RotS -- Roatation
+                    | RotS -- Rotation
                     | DotPr -- dotProduct
                     | ModS  -- modulo
                     deriving (Eq, Ord)

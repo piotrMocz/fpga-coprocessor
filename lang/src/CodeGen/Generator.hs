@@ -69,6 +69,7 @@ processExpr expr = case expr of
     AST.BinOp op l r     -> processExpr l *> processExpr r *> (if AST.isScalarOp op then processOp else unvectorizeOp) op
     AST.If   cond ts fs  -> processIf cond ts fs
     AST.Loop cond body   -> processLoop cond body
+    AST.Rot expr         -> processExpr expr *> pushASMInstr ASM.RotS
     _                    -> throwE $ GeneratorError "Instruction not yet implemented"
 
 
@@ -282,7 +283,6 @@ getTwoStackOp (AST.Add   _)   = ASM.AddS
 getTwoStackOp (AST.Sub   _)   = ASM.SubS
 getTwoStackOp (AST.Mul   _)   = ASM.MulS
 getTwoStackOp (AST.Div   _)   = ASM.DivS
-getTwoStackOp (AST.Rot   _)   = ASM.RotS
 getTwoStackOp (AST.Mod   _)   = ASM.ModS
 getTwoStackOp (AST.DotPr _)   = ASM.DotPr
 

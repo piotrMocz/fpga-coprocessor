@@ -19,7 +19,7 @@ languageDef =
                                      , "IntVector"
                                      , "loop"
                                      ]
-           , Token.reservedOpNames = ["+", "-", "*", "/", "%", "&", "?", "=", ":", "[", "]", ",", "(", ")"]
+           , Token.reservedOpNames = ["rot90", "+", "-", "*", "/", "%", "&", "?", "=", ":", "[", "]", ",", "(", ")"]
            }
 
 lexer = Token.makeTokenParser languageDef
