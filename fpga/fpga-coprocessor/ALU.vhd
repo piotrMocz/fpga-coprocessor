@@ -15,7 +15,8 @@ entity ALU is
     prod       : out std_logic_vector(63 downto 0);
     division   : out std_logic_vector(63 downto 0);
 	 modulo     : out std_logic_vector(63 downto 0);
-    scalarProd : out std_logic_vector(63 downto 0)
+    scalarProd : out std_logic_vector(63 downto 0);
+	 rotation   : out std_logic_vector(63 downto 0)
   );
 end entity ALU;
 
@@ -79,4 +80,14 @@ begin
        + to_integer(unsigned(op1(55 downto 48))) * to_integer(unsigned(op2(55 downto 48)))
        + to_integer(unsigned(op1(63 downto 56))) * to_integer(unsigned(op2(63 downto 56)))
   ,8));
+  
+  rotation( 7 downto  0) <= op1(15 downto  8);
+  rotation(15 downto  8) <= std_logic_vector(to_unsigned(256 - to_integer(unsigned(op1( 7 downto  0))), 8));
+  rotation(23 downto 16) <= op1(31 downto 24);
+  rotation(31 downto 24) <= std_logic_vector(to_unsigned(256 - to_integer(unsigned(op1(23 downto 16))), 8));
+  rotation(39 downto 32) <= op1(47 downto 40);
+  rotation(47 downto 40) <= std_logic_vector(to_unsigned(256 - to_integer(unsigned(op1(39 downto 32))), 8));
+  rotation(55 downto 48) <= op1(63 downto 56);
+  rotation(63 downto 56) <= std_logic_vector(to_unsigned(256 - to_integer(unsigned(op1(55 downto 48))), 8));
+  
 end arch;

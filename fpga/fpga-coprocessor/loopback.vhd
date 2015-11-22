@@ -111,7 +111,8 @@ architecture RTL of LOOPBACK is
 		  prod       : out std_logic_vector(63 downto 0);
         division   : out std_logic_vector(63 downto 0);
 	     modulo     : out std_logic_vector(63 downto 0);
-        scalarProd : out std_logic_vector(63 downto 0)
+        scalarProd : out std_logic_vector(63 downto 0);
+		  rotation   : out std_logic_vector(63 downto 0)
     );
     end component;
 
@@ -196,6 +197,7 @@ architecture RTL of LOOPBACK is
 	 signal vr_division                : std_logic_vector(63 downto 0);
 	 signal vr_modulo                  : std_logic_vector(63 downto 0);
 	 signal vr_scalarProd              : std_logic_vector(63 downto 0);
+	 signal vr_rotation                : std_logic_vector(63 downto 0);
 	 
 	 signal alu_op1                    : std_logic_vector(63 downto 0) := (others => '0');
 	 signal alu_op2                    : std_logic_vector(63 downto 0) := (others => '0');
@@ -306,7 +308,8 @@ begin
 		  prod       => vr_prod,
 		  division   => vr_division,
 		  modulo     => vr_modulo,
-		  scalarProd => vr_scalarProd
+		  scalarProd => vr_scalarProd,
+		  rotation   => vr_rotation
     );
 	 
 	 
@@ -433,7 +436,12 @@ begin
 				  then          
 			      s_enable        <= '1';
 					s_command       <= '1'; -- (pop)
-					loopback_state  <= scalarOp_pre1;		
+					loopback_state  <= scalarOp_pre1;
+					
+			  elsif imem_out = "01110001" then -- ROT
+			      s_enable        <= '1';
+					s_command       <= '1';
+					loopback_state  <= scalarOp_pre3; -- zmniejsza liczbe stanow i czytelnosc kodu
 					
 			  elsif imem_out(7 downto 3) = "01010" then -- STORE
 			      s_enable        <= '1';
@@ -509,6 +517,8 @@ begin
 			       then s_pushd   <= vr_diffr;	-- SUB
 			   elsif imem_out = "01111110"      -- ADD
                 then s_pushd   <= vr_sum;
+				elsif imem_out = "01110001"      -- ROT
+				    then s_pushd   <= vr_rotation;
 				end if;
 				imem_read_addr     <= imem_read_addr + 1;
 				loopback_state     <= processing2;	  
