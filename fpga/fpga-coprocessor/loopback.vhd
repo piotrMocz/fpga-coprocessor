@@ -77,8 +77,8 @@ architecture RTL of LOOPBACK is
 	 component const_mem is
         port (
             clk          : in  std_logic;
-         	write_addr   : in  integer range 0 to 63;
-	         read_addr    : in  integer range 0 to 7;
+         	write_addr   : in  integer range 0 to 127;
+	         read_addr    : in  integer range 0 to 15;
 	         we           : in  std_logic;
 	
 	         cmem_byte_in : in  std_logic_vector( 7 downto 0);
@@ -121,7 +121,7 @@ architecture RTL of LOOPBACK is
     -- UART signals
     ----------------------------------------------------------------------------
     
-	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying, vr_binOp, vr_binOp_inter, vr_binOp2, vr_binOp_fin, storing, storing2, loading, loading2, scalarOp_main, scalarOp_pre1, scalarOp_pre2, scalarOp_pre3, scalarOp_pre4, checking_zero1, checking_zero2);
+	 type state_t is (idle, processing, processing2, reading, sending, sending2, push, push2, mock_state, pop_stack, vr1moving, vr1copying, vr2moving, vr2copying, vr_binOp, vr_binOp_inter, vr_binOp2, vr_binOp_fin, storing, storing2, loading, loading2, scalarOp_main, scalarOp_pre1, scalarOp_pre2, scalarOp_pre3, scalarOp_pre4, checking_zero1, checking_zero2, last_byte, last_byte2);
 	 signal loopback_state               : state_t := idle;
 	 
 	 -- uart signals:
@@ -147,8 +147,8 @@ architecture RTL of LOOPBACK is
     signal ram_vec_out             : std_logic_vector(63 downto 0);
 	 
 	 -- constants memory signals:
-	 signal cmem_write_addr          : integer range 0 to 63 := 0;
-	 signal cmem_read_addr           : integer range 0 to  7 := 0;
+	 signal cmem_write_addr          : integer range 0 to 127 := 0;
+	 signal cmem_read_addr           : integer range 0 to  15 := 0;
 	 signal cmem_we                  : std_logic := '0';
     signal cmem_in                  : std_logic_vector( 7 downto 0) := (others => '0');
 	 signal cmem_8b_out              : std_logic_vector(63 downto 0) := (others => '0');
@@ -406,8 +406,8 @@ begin
 			  ram_we              <= '0';
 				    	 
 		 when reading =>
-		     if imem_out(7 downto 3) = "01000" then  -- "PUSH [const]"
-					cmem_read_addr  <= to_integer(unsigned(imem_out(2 downto 0)));
+		     if imem_out(7 downto 4) = "0010" then  -- "PUSH [const]"
+					cmem_read_addr  <= to_integer(unsigned(imem_out(3 downto 0)));
 			      loopback_state  <= push;
 		     elsif imem_out = "01011000" then        -- MOVS1
 					s_enable        <= '1';
@@ -634,7 +634,10 @@ begin
 			     uart_data_in_stb    <= '0';
 				  if send_ctr = 0 then			  
 			         if s_empty = '1' then
-						    loopback_state  <= idle;
+						    imem_read_addr  <= 0;
+							 imem_write_addr <= 0;
+							 imem_we         <= '0';
+						    loopback_state  <= last_byte;
 						else
 						    s_enable        <= '1';
 							 s_command       <= '1';
@@ -645,6 +648,17 @@ begin
 				      loopback_state  <= mock_state;
 				  end if;
           end if;
+			 
+		when last_byte =>
+		    uart_data_in_stb <= '1';
+			 uart_data_in     <= "11111111";
+			 loopback_state   <= last_byte2;
+			 
+		when last_byte2 =>
+		    if uart_data_in_ack = '1' then
+			     uart_data_in_stb <= '0';
+				  loopback_state   <= idle;
+			 end if;
 					 
 	   end case;
 					 

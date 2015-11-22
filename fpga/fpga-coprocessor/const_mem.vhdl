@@ -8,8 +8,8 @@ use ieee.numeric_std.all;
 entity const_mem is
 port (
    clk          : in  std_logic;
-	write_addr   : in  integer range 0 to 63;
-	read_addr    : in  integer range 0 to 7;
+	write_addr   : in  integer range 0 to 127;
+	read_addr    : in  integer range 0 to 15;
 	we           : in  std_logic;
 	
 	cmem_byte_in : in  std_logic_vector( 7 downto 0);
@@ -19,7 +19,7 @@ end const_mem;
 
 architecture arch of const_mem is
    
-	type mem_t is array(0 to 63) of std_logic_vector(7 downto 0);
+	type mem_t is array(0 to 127) of std_logic_vector(7 downto 0);
    signal ram_block : mem_t := (others => (others => '0'));
 	
 begin
