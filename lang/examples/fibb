@@ -1,0 +1,12 @@
+term1:IntVector[8] = [0,1,1,2,3,5,8,13]
+term2:IntVector[8] = [1,1,2,3,5,8,13,21]
+result:IntVector[8] = [0,0,0,0,0,0,0,0]
+
+loop(5):
+  result = term1 + term2
+  term1 = term2
+  term2 = result
+end
+
+result
+#expecting [8, 13, 21, 34, 55, 89, 144, 233] 
