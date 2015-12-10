@@ -61,7 +61,10 @@ typeCheck (BinOp op expr1 expr2) = do
 
 typeCheck (Rot expr) = do
   e1 <- typeCheck expr
-  return $ Rot e1
+  tp <- infer expr
+  if tp /= Vector 8
+    then throwE . TypecheckerError $ "Rotation vector needs exactly 8 elements"
+    else return $ Rot e1
 
 
 typeCheck (If cond t f) =
@@ -104,7 +107,7 @@ infer (BinOp op expr1 expr2) = do
               Add x   -> return x
               Sub x   -> return x
               Div x   -> return x
-              DotPr x -> return x
+              DotPr x -> return Scalar
               Mod x   -> return x
 
 infer (Rot x) = infer x

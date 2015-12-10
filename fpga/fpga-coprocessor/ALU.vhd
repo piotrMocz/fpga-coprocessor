@@ -60,14 +60,14 @@ begin
   division(55 downto 48)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op1(55 downto 48))) / to_integer(unsigned(op2(55 downto 48))), 8));
   division(63 downto 56)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op1(63 downto 56))) / to_integer(unsigned(op2(63 downto 56))), 8));
 
-  modulo( 7 downto  0)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op1( 7 downto  0))) mod to_integer(unsigned(op2( 7 downto  0))), 8));
-  modulo(15 downto  8)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op1(15 downto  8))) mod to_integer(unsigned(op2(15 downto  8))), 8));
-  modulo(23 downto 16)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op1(23 downto 16))) mod to_integer(unsigned(op2(23 downto 16))), 8));
-  modulo(31 downto 24)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op1(31 downto 24))) mod to_integer(unsigned(op2(31 downto 24))), 8));
-  modulo(39 downto 32)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op1(39 downto 32))) mod to_integer(unsigned(op2(39 downto 32))), 8));
-  modulo(47 downto 40)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op1(47 downto 40))) mod to_integer(unsigned(op2(47 downto 40))), 8));
-  modulo(55 downto 48)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op1(55 downto 48))) mod to_integer(unsigned(op2(55 downto 48))), 8));
-  modulo(63 downto 56)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op1(63 downto 56))) mod to_integer(unsigned(op2(63 downto 56))), 8));
+  modulo( 7 downto  0)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op2( 7 downto  0))) mod to_integer(unsigned(op1( 7 downto  0))), 8));
+  modulo(15 downto  8)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op2(15 downto  8))) mod to_integer(unsigned(op1(15 downto  8))), 8));
+  modulo(23 downto 16)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op2(23 downto 16))) mod to_integer(unsigned(op1(23 downto 16))), 8));
+  modulo(31 downto 24)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op2(31 downto 24))) mod to_integer(unsigned(op1(31 downto 24))), 8));
+  modulo(39 downto 32)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op2(39 downto 32))) mod to_integer(unsigned(op1(39 downto 32))), 8));
+  modulo(47 downto 40)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op2(47 downto 40))) mod to_integer(unsigned(op1(47 downto 40))), 8));
+  modulo(55 downto 48)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op2(55 downto 48))) mod to_integer(unsigned(op1(55 downto 48))), 8));
+  modulo(63 downto 56)   <= std_logic_vector(to_unsigned(to_integer(unsigned(op2(63 downto 56))) mod to_integer(unsigned(op1(63 downto 56))), 8));
 
   scalarProd(63 downto 8)<= (others => '0');
   scalarProd(7  downto 0) <= std_logic_vector(to_unsigned(
