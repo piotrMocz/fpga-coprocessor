@@ -1,0 +1,31 @@
+Struktura projektu w naturalny sposób narzuca podział na trzy moduły, które jednakże są od siebie mocno zależne, tj. zmiana koncepcji w jednym niesie za sobą konieczność zmiany w drugim. Moduły, jak już zostało wspomniane, to:
+\begin{itemize}
+  \item język wraz z jego kompilatorem
+  \item koprocesor wektorowy na FPGA
+  \item moduł komunikacji przez port szeregowy (zarówno po stronie komputera jak i FPGA)
+\end{itemize}
+
+Dzięki temu prace można było prowadzić równolegle i wymieniać się informacjami. Zakupiliśmy dwie identyczne płytki De0-nano, na których mogliśmy jednocześnie testować wprowadzane przez nas zmiany. Jako że, jak zostało wspomniane, zmiany koncepcji języka pociągały za sobą zmiany w projekcie koprocesora (i vice-versa), częsty model pracy polegał na wprowadzaniu zmian w języku przez jedną osobę, a odpowiadających im zmian w koprocesorze przez drugą. Niejako oddzielnie powstawał moduł komunikacji. Musiał, przynajmniej w pewnym zakresie, działać jeszcze przed rozpoczęciem implementacji koprocesora, jako że bez komunikacji z płytką ciężko byłoby sprawdzać poprawność projektowanego układu.
+
+Realizację projektu zaczęliśmy od określenia koncepcji języka, gdyż to ona dyktowała większość decyzji projektowych. Gdy składnia i semantyka języka były już dobrze określone, przystąpiliśmy do implementacji kompilatora. Zostało stworzone AST (Abstrakcyjne Drzewo Syntaktyczne -- Abstract Syntax Tree) i parser, potrafiący zbudować je analizując tekst programu. Został również stworzony pierwszy szkic instrukcji assemblera i zalążek modułu potrafiącego tłumaczyć AST do assemblera. Następnie język tworzony był przyrostowo: początkowo obsługiwane były tylko literały i operacje arytmetyczne. Następnie dodawane były kolejne instrukcje i struktury języka (instrukcje warunkowe, pętle, deklaracje zmiennych), a kompilator był uaktualniany o kolejne funkcjonalności.
+
+Podobnie tworzony był koprocesor na układzie FPGA. Zaczęliśmy od działającej implementacji UART -- odsyłała z powrotem wszystko, co wysłano z komputera (loopback). Takie podejście pozwoliło nam między innymi stosunkowo szybko wychwycić niedoskonałości obsługi złącza w Raspberry Pi i zmienić sprzęt. Następnie do układu FPGA były dodawane i testowane kolejne moduły: stosy, pamięć instrukcji, pamięć RAM, a wraz z nimi obsługa kolejnych instrukcji assemblera. Na końcowych etapach realizacji projektu sprowadzało się to do powiększania i optymalizacji maszyny stanów, która stanowi ,,serce'' koprocesora.
+
+\section{Podział prac}
+\subsection{Tomasz Dyczek}
+\begin{itemize}
+  \item implementacja lexera i parsera (język programowania)
+  \item implementacja typecheckera (język programowania)
+  \item implementacja binaryzacji assemblera (język programowania)
+  \item implementacja wybranych funkcjonalności koprocesora
+\end{itemize}
+
+\subsection{Piotr Moczurad}
+\begin{itemize}
+  \item implementacja translacji AST do assemblera
+  \item opracowanie protokołu binaryzacji
+  \item implementacja maszyny stanów i wybranych komponentów koprocesora
+  \item implementacja komunikacji przez UART
+\end{itemize}
+
+Przedstawiony powyżej podział nie był zupełny, tj. niektóre funkcjonalności nie były przydzielone jednej konkretnej osobie, a implementowane wspólnie. W szczególności: opracowywanie koncepcji i projektu systemu odbywało się wspólnie, a zmiany w koncepcji były wynikiem przemyśleń obydwu twórców systemu.

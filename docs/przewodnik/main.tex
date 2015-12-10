@@ -1,0 +1,45 @@
+\documentclass[12pt,twoside]{report}
+\usepackage[utf8x]{inputenc}
+\usepackage{polski}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[a4paper,width=150mm,top=25mm,bottom=25mm,bindingoffset=6mm]{geometry}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhead{}
+\fancyhead[RO,LE]{Thesis Title}
+\fancyfoot{}
+\fancyfoot[LE,RO]{\thepage}
+\fancyfoot[LO,CE]{Chapter \thechapter}
+\fancyfoot[CO,RE]{Author Name}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\title{Sprzętowo-programowy system przetwarzania danych wektorowych}
+\author{Tomasz Dyczek, Piotr Moczurad}
+\date{6.12.2015}
+
+\begin{document}
+	\input{titlepage}
+	\tableofcontents
+	
+	  \chapter{Cel pracy i wizja produktu}
+    \input{chapters/one}
+
+    \chapter{Zakres funkcjonalności}
+    \input{chapters/two}
+
+    \chapter{Wybrane aspekty realizacji}
+    \input{chapters/three}
+
+    \chapter{Organizacja pracy}
+    \input{chapters/four}
+
+    \chapter{Wyniki projektu}
+    \input{chapters/five}
+
+    \chapter{Bibliografia}
+    \input{chapters/six}
+	
+\end{document}
