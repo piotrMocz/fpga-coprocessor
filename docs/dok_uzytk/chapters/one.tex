@@ -1,0 +1,28 @@
+\section{Instalacja systemu i niezbędnych składników}
+Podstawowym składnikiem potrzebnym do skompilowania kompilatora jest platforma Haskella. W skład jej wchodzą:
+\begin{description}
+  \item[Glasgow Haskell Compiler] \hfill \\
+  otwarty kompilator i interaktywne środowisko funkcjonalnego języka Haksell 
+  \item[Cabal build system] \hfill \\
+  architektura do budowania bibliotek i aplikacji dedykowana dla Haskella
+  \item[35 pakietów] \hfill \\
+  Podstawowe i najczęściej używane moduły haskella
+  \item[Narzędzia do profilowania i analizowania kodu] \hfill \\
+  Interaktywne środowisko programowania, parsery i lexery haskellowego kodu, środowisko testowe
+\end{description}
+
+Platforme Haskella znaleźć można na oficjalnej stronie języka w zakładce Downloads(https://www.haskell.org/downloads).
+
+Kolejnym wymaganym składnikiem jest środowisko Quartus II Web Edition potrzebne do kompilacji i uruchomienia projektu na zestawie startowym z układem fpga. Pobrać można je z centrum pobierania na stronie Altery(http://dl.altera.com/13.1/web).
+
+Ostatnim wymaganym programem jest kompilator języka C - GCC, the GNU Compiler Collection potrzebny do kompilacji programu wysyłającego plik binarny na zestaw uruchomieniowy i odbierającego wynik.
+
+\section{Wymagany hardware}
+Do uruchomienia projektu potrzebny jest zestaw startowy z układem FPGA. Projekt rozwijany i testowany było na układzie \textbf{Terasic DE0-Nano z rodziny Cyclone IV} firmy Altera. 
+
+Komunikacja komputera PC z zestawem FPGA odbywa się za pomocą układu UART w związku z tym do przesłania pliku potrzebny jest \textbf{Konwerter USB-UART}. W projekcie wykorzytaliśmy Konwerter USB-UART PL2303 umożliwiający komunikacje pomiędzy interfejsami szeregowymi USB i UART widoczny w systemie jako wirtualny port COM.
+
+
+\section{Section Title}
+Lorem ipsum d proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
