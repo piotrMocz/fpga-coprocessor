@@ -21,7 +21,7 @@ result
 \caption{Rezultat wektorowego obliczania ciągu fibonacciego}
 \end{figure}
 \section{Rotacja figury w 3 wymiarach}
-Operacja rotacji punktów jest zaproponowanym przez nas działaniem mającym pokazać rozszerzalność procesora o nowe mnemoniki. W swoim założeniu ma ona przyjmować 8 elementowy wektor składający się z 4 punktów po 2 współrzędne. Jej wynikiem ma być nowy wektor 8 elementowy zawierający 4 zadane punkty obrócone o 90 stopni względem punktu (128, 128). Funkcja \textbf{rot90} tłumaczona jest przez kompilator na asemblerową \textbf{RotS}.
+Operacja rotacji punktów jest zaproponowanym przez nas działaniem mającym pokazać rozszerzalność procesora o nowe mnemoniki. W swoim założeniu ma ona przyjmować 8 elementowy wektor składający się z 4 punktów po 2 współrzędne. Jej wynikiem ma być nowy wektor 8 elementowy zawierający 4 zadane punkty obrócone o 90 stopni względem punktu (128, 128). Funkcja \textbf{rot90} tłumaczona jest przez kompilator na asemblerową \textbf{RotS}. Sama rotacja względem punktu realizowana jest w sposób bardzo prosty. Jest ona złożeniem translacji do początku układu, rotacją względem punktu (0,0) (dzięki temu otrzymujemy bardzo prosty wzór) a na końcu znowu translacją - tym razem do punktu (128,128). Opisać ją można wzorem $rot90(x,y) = (256 - x, y) $. (Patrz rysunek 2.2)
 \begin{figure}[!ht]
 \centerline{
 \includegraphics[scale=1]{images/figure_1}}

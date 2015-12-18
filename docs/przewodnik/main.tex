@@ -6,6 +6,7 @@
 \usepackage{subcaption}
 \usepackage[a4paper,width=150mm,top=25mm,bottom=25mm,bindingoffset=6mm]{geometry}
 \usepackage{fancyhdr}
+\usepackage[nottoc,numbib]{tocbibind}
 \pagestyle{fancy}
 \fancyhead{}
 \fancyhead[RO,LE]{Thesis Title}
@@ -24,7 +25,7 @@
 	\input{titlepage}
 	\tableofcontents
 	
-	  \chapter{Cel pracy i wizja produktu}
+	\chapter{Cel pracy i wizja produktu}
     \input{chapters/one}
 
     \chapter{Zakres funkcjonalności}
@@ -39,7 +40,7 @@
     \chapter{Wyniki projektu}
     \input{chapters/five}
 
-    \chapter{Bibliografia}
+	%Bibliografia
     \input{chapters/six}
 	
 \end{document}
