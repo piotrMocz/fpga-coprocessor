@@ -1,0 +1,170 @@
+\section{Kompilator}
+
+\subsection{Moduły w języku Haskell}
+Kompilator został stworzony w języku Haskell, zatem zanim przejdziemy do opisu poszczególnych modułów, przedstawimy podejście do grupowania kodu w moduły w języku Haskell.
+
+Grupowanie kodu w moduły jest w języku Haskell szczególnie ważne, a klarowna i uporządkowania struktura modułów świadczy o dobrym stylu programowania. Wspominamy o szczególnej ważności, jako że w Haskellu nie ma obiektowości, a nazwy pól w rekordach są globalne dla całego modułu. Przykładowo, nie możemy w jednym pliku stworzyć rekordów typu A i B, posiadających pola o tej samej nazwie (spowoduje to błąd kompilacji). Dobrą praktyką jest zatem nieumieszczanie w jednym module zbyt dużej ilości typów danych, a przy importowaniu modułów kwalifikowanie ich nazw (w przeciwieństwie do wrzucania wszystkich nazw do jednej przestrzeni nazw). Podejście takie jest szczególnie korzystne, gdy kod tworzy więcej osób, które muszą ze sobą współpracować.
+
+Haskell wymusza na nas umieszczanie każdego modułu w osobnym pliku, a na pełną nazwę modułu (podobnie jak np. w języku Java) składa się cała ścieżka (od głównego folderu ze źródłami projektu) oraz nazwa pliku. Przykładowo, jeśli chcemy stworzyć moduł \texttt{A.B.C}, musimy w folderze \texttt{src} naszego projektu umieścić plik \texttt{A/B/C.hs}. Dodatkowo, mamy możliwość importowania modułów na różne sposoby. Rozważmy sytuację, w której chcemy użyć funkcji \texttt{foo} z modułu \texttt{A}, zawierającego również funkcję \texttt{bar}:
+\begin{itemize}
+  \item \texttt{import A} -- zaimportujemy wszystkie symbole z modułu A do bieżącej przestrzeni nazw (czyli będziemy mogli napisać zarówno: \texttt{foo}, jak \texttt{bar}
+  \item \texttt{import A hiding (bar)} -- zaimportujemy cały moduł A, z wyjątkiem funkcji bar
+  \item \texttt{import qualified A} -- zaimportujemy cały moduł A, ale w sposób kwalifikowany, tj. będziemy pisać: \texttt{A.foo} i \texttt{A.bar}
+  \item \texttt{import A (foo)} -- zaimportujemy jedynie funkcję foo
+\end{itemize}
+
+Dobrą praktyką jest stosowanie wyłącznie importów w dwóch ostatnich stylach --- poprawia to czytelność kodu i ułatwia jego współdzielenie. Wyjątkiem są sytuacje, w których tworzymy moduł zawierający często stosowane funkcje pomocnicze --- taki moduł możemy zaimportować w całości.
+
+W kolejnych punktach opisane zostaną moduły wchodzące w skład kompilatora, przy zachowaniu logicznej kolejności przepływu danych przez kompilator. Opisujemy zatem ogólny kształt  abstrakcyjnego drzewa syntaktycznego naszego języka, przez sposób jego generacji (parsing), sprawdzanie typów (typechecking), assembler, sposób generacji i przetwarzania assemblera, aż po generowanie binarnych plików wykonywalnych, wysyłanych do procesora przez moduł komunikacyjny.
+
+\subsection{AST}
+
+Moduł zawierający definicję abstrakcyjnego drzewa składniowego naszego języka (AST -- Abstract Syntax Tree). Drzewo wyznacza sposób, w jaki wyrażenia języka będą reprezentowane przez kompilator po sparsowaniu i jego poprawne zbudowanie jest kluczowe dla sprawnego działania kompilatora. W szczególności, na etapie tworzenia AST możemy podjąć decyzje ważne również z punktu widzenia semantyki języka: przykładowo, zdecydować, że każda konstrukcja w języku jest wyrażeniem, a co za tym idzie wszystko można przypisać do zmiennej. AST naszego języka jest przedstawione na rysunku \ref{fig:ast}. Zostało zaimplementowane przy użyciu algebraicznych typów danych, pozwalających wyrazić typ danych jako rodzaj unii rekordów lub, mówiąc językiem teorii typów, sumę typów iloczynowych. Oznacza to, że typ danych \texttt{Expr} może zostać stworzony jednym z wielu konstruktorów (np. \texttt{VarE} lub \texttt{BinOp}), a każdy z konstruktorów może posiadać (opcjonalnie nazwane) pola różnych typów. W szczególności może to być pole typu \texttt{Expr}, co umożliwia tworzenie rekurencyjnych typów takich, jak omawiane drzewo.
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.5]{images/AST.png}
+    \caption{Abstrakcyjne drzewo syntaktyczne naszego języka w języku Haskell.}
+    \label{fig:ast}
+  \end{center}
+\end{figure}
+
+Omówimy teraz strukturę typu \texttt{Expr}, będącego centralnym typem dla naszego AST. Posiada on szereg konstruktorów, odpowiadających różnym elementom języka:
+\begin{itemize}
+  \item \texttt{Lit} -- literał, pojedyncza skalarna wartość. Choć język nie rozróżnia wektorów od skalarów, są one inaczej parsowane przez parser
+  \item \texttt{VecLit} -- literał będący wektorem, czyli zapisany bezpośrednio w kodzie programu wektor
+  \item \texttt{VarE} -- użycie zmiennej, pobranie z niej wartości do wykorzystania w wyrażeniu
+  \item \texttt{BinOp} -- operacja binarna, niesie informacje o użytym operatorze (\texttt{+}, \texttt{-}, etc.) i operandach
+  \item \texttt{If} -- wyrażenie warunkowe, zawierające dodatkowo jako pola warunek i listy wyrażeń wykonywanych w razie spełnienia warunku i w przeciwnym wypadku
+  \item \texttt{Assign} -- przypisanie do zmiennej, niosące informację o nazwie zmiennej i wyrażeniu, które się pod nią podstawia
+  \item \texttt{Decl} -- deklaracja zmiennej, będąca jednocześnie jej inicjalizacją. Dodatkowe pola to nazwa zmiennej, typ i wyrażenie inicjalizujące
+  \item \texttt{Loop} -- pętla, pozwalająca na wykonanie określoną liczbę razy listy instrukcji
+  \item \texttt{Rot} -- dedykowana instrukcja służąca rotowaniu czworokątów na płaszczyźnie
+\end{itemize}
+
+Studiując AST można zauważyć szereg decyzji dotyczących formy języka, na przykład: nie jest możliwe zadeklarowanie zmiennej bez jej inicjalizacji. Umożliwienie tego powoduje dużo błędów, gdy programista zapomni przypisać początkowych wartości do zmiennej i dostanie ona przypadkową wartość, która została w danej komórce pamięci. Takie błędy są stosunkowo trudne do wyśledzenia, a możliwość pominięcia inicjalizacji nie daje programiście w zamian wiele ekspresji. Utworzenie osobnej instrukcji \texttt{Rot} jest konsekwencją koncepcji procesora i języka: programista nie powinien operować ręcznie na adresach pamięci czy wręcz na pojedynczych elementach wektora. Powinien dostać gotowy, wspierany sprzętowo sposób osiągnięcia swojego celu.
+
+\subsection{Lexer}
+
+Lekser służy do podziału wejścia kompilatora na tokeny zgodnie z regułami podanymi przez twórcę języka. O tokenach możemy myśleć jako o najmniejszych, atomowych częściach języka. Lekser rozpoznaje również znaki specjalne i słowa kluczowe języka. Dzięki temu parser nie musi operować na ciągłym tekście, a skończonym zestawie tokenów, które dużo łatwiej przetwarzać, jako że znamy ich kategorie. Lekser został zaimplementowany przy użyciu popularnej biblioteki do parsingu napisanej w języku Haskell: Parsec. Więcej o tej bibliotece powiemy w kolejnym podpunkcie, dotyczącym parsera.
+
+\subsection{Parser}
+
+Parser służy do tłumaczenia tekstu programu na abstrakcyjne drzewo syntaktyczne. Najpopularniejszym podejściem przy tworzeniu parserów i lekserów jest ich generacja narzędziami takimi jak Lex, Yacc czy Bison, które dostawszy opis tokenów i gramatyki języka, są w stanie wyprodukować program parsera (zazwyczaj są to parsery LR lub pokrewne). Jakkolwiek dostajemy w ten sposób parsery bardzo wydajne, to taka technika jest niewygodna, wymaga znajomości specyficznej składni do zapisu tokenów i gramatyk, korzystania z dodatkowych narzędzi i utrudnia ewentualne zmiany w języku. Podejście, które wybrano przy tworzeniu projektu jest zgoła inne. Do języka Haskell dostępna jest dojrzała i stabilna biblioteka Parsec, oferująca monadyczne parsery działające na zasadzie tzw. \textit{parser combinators}. Są to rekurencyjne parsery top-down, które działają na zasadzie składania prostszych parserów w bardziej złożone. (Parser jest funkcją, która czyta wejście i zwraca parser, a zatem parsery bardziej skomplikowanych wyrażeń możemy składać z prostszych parserów).
+
+Monadyczność jest pojęciem specyficznym dla programowania funkcyjnego i polega na używaniu do implementacji oprogramowania struktur nazywanych \textit{monadami}. Umożliwiają one między innymi osadzenie w języku funkcyjnym obliczeń, które mają efekty (w Haskellu monady są kluczowym pojęciem języka i wykorzystywane są do tak elementarnych operacji jak wejście-wyjście czy obsługa błędów).
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.5]{images/parsing.png}
+    \caption{Przykład zastosowania monadycznej składni do sparsowania wyrażenia warunkowego}
+    \label{fig:parsing}
+  \end{center}
+\end{figure}
+
+Monadyczny styl powoduje, że możemy napisać konstrukcję jak na rysunku \ref{fig:parsing}. Operator ,,\texttt{<-}'' jest charakterystyczną dla monad operacją \textit{bind}, która pozwala na wydobywanie wartości z monad z uwzględnieniem efektów, jakie były z daną wartością stowarzyszone. W tym przypadku mówimy parserowi, że aby sparsować wyrażenie warunkowe, musi najpierw znaleźć dopasowanie słowa kluczowego \texttt{if}, następnie spróbować sparsować warunek za pomocą parsera \texttt{aExpression} i nadać mu nazwę \texttt{cond} i wykonać podobne czynności dla kolejnych części instrukcji warunkowej. Ostatnia instrukcja na rysunku wykorzystuje operator \textit{return} by umieścić tworzony element drzewa AST (w tym przypadku jest to konstruktor \texttt{If} typu \texttt{Expr}, zawierający jako pola sparsowane przez nas elementy wyrażenia warunkowego) w monadycznym kontekście. Skojarzenie z instrukcją \texttt{return} z języków imperatywnych jest zupełnie niepoprawne, choć potrzeba czasu, by przestało się nasuwać --- \texttt{return} z Haskella nie wychodzi z funkcji, a ,,otacza'' zwykłą wartość monadą. Możemy zatem napisać \texttt{let a = return "Ala ma kota"} i w zmiennej \texttt{a} znajdzie się wartość typu \texttt{m String}, gdzie \texttt{m} jest dowolną, dedukowaną z kontekstu monadą.
+
+
+\subsection{ASM}
+
+Moduł \texttt{CodeGen.ASM} zawiera przede wszystkim opis mnemoników języka assembler, produkowanego przez kompilator oraz pomocnicze funkcje do tworzenia wartości w liczbowych w języku i konwersji mnemoników z abstrakcyjnych struktur na tekst, celem ich wyświetlenia. Poniżej znajduje się opis wszystkich instrukcji assemblera, zaimplementowanych w kompilatorze jako różne konstruktory jednego typu: \texttt{ASM}.
+
+\begin{itemize}
+  \item \texttt{Load addr} -- ładuje wartość spod podanego adresu (\texttt{addr}) w pamięci i wrzuca ją na stos
+  \item \texttt{Store addr} -- odwrotność instrukcji \texttt{Load}, ściąga wartość ze szczytu stosu i zapisuje ją pod podany adres do pamięci
+  \item \texttt{Push addr} -- wrzuca na stos stałą (przypomnijmy, że stałe trzymane są w osobnym segmentcie stałych, tak więc instrukcja \texttt{Push} przyjmuje nie cały wektor, a jedynie jego adres w tablicy stałych
+  \item \texttt{MovS1} -- instrukcja specyficzna dla architektury z trzema stosami: ściąga wartość z głównego stosu i wrzuca na pierwszy stos pomocniczy
+  \item \texttt{MovS2} -- podobnie do poprzedniej instrukcji, jednakże wrzuca na drugi stos pomocniczy
+  \item \texttt{JumpZ lab} -- instrukcja skoku warunkowego, przeskakuje do wskazanej etykiety tylko, jeżeli na szczycie stosu jest wartość 0
+  \item \texttt{Jump lab} -- instrukcja skoku bezwarunkowego, skacze do etykiety niezależnie od wartości na stosie
+  \item \texttt{JumpIPZ ipVal} -- instrukcja skoku warunkowego skacząca do konkretnej wartości wskaźnika instrukcji (IP -- Instruction Pointer)
+  \item \texttt{Jump ipVal} -- instrukcja skoku bezwarunkowego, skaczące do wartości wskaźnika instrukcji
+  \item \texttt{Add, Sub, Mul, Div} -- instrukcje skalarnych operacji arytmetycznych, ściągają ze stosu dwa operandy, wykonują na nich odpowiednie działanie i wrzucają na stos wynik
+  \item \texttt{AddS, SubS, MulS, DivS} -- instrukcje operacji arytmetycznych operujące na pomocniczych stosach. Po kolei ściągają ze szczytu obydwu stosów pomocniczych, wykonują działanie na tych dwóch wartościach i wrzucają wynik na główny stos, aż do momentu, kiedy stosy pomocnicze będą puste
+  \item \texttt{RotS} -- instrukcja odpowiedzialna za rotację wektorów
+  \item \texttt{DotPr} -- instrukcja licząca iloczyn skalarny dwóch wektorów z wierzchołka stosu i wrzucająca wynik na stos
+  \item \texttt{ModS} -- ściąga ze stosu dwa wektory, liczy resztę z dzielenia każdego elementu pierwszego z nich przez odpowiedni element drugiego i wrzuca wynik z powrotem na stos
+\end{itemize}
+
+W szczególnej relacji pozostają ze sobą instrukcje \texttt{Jump}, \texttt{JumpZ}, \texttt{JumpIP} i \texttt{JumpIPZ}. Kompilacja skoków warunkowych odbywa się w trzech etapach:
+\begin{itemize}
+  \item kompilator, widząc instrukcję warunkową lub pętlę tworzy odpowiednie etykiety: na początku pętli i tuż za ciałem pętli. Dzięki temu możemy użyć instrukcji skoku bezwarunkowego do początku pętli za każdym razem, gdy wykonamy wszystkie instrukcje z jej wnętrza oraz skoku warunkowego na początku pętli, by w razie wyzerowania warunku pętli skoczyć poza pętlę (zauważmy, że uwzględnia to brzegowy przypadek pętli z zerową liczbą iteracji).
+  \item po wygenerowaniu całego kodu assemblera numerujemy wszystkie instrukcje programu (mamy pewność, że ich ilość już się nie zmieni).
+  \item każdą instrukcję skoku do etykiety przerabiamy na instrukcję skoku do numeru instrukcji stowarzyszonego z daną etykietą. Same etykiety nie są przy tym usuwane, a jedynie ingorowane przez procesor jak pusta instrukcja (w ten sposób unikamy konieczności ponownej numeracji linii po usunięciu etykiety).
+\end{itemize}
+
+Dzięki opisanym zabiegom procesor może utożsamić numer instrukcji z jej adresem w pamięci instrukcji (przypomnijmy, że instrukcje mają długość jednego bajtu, więc nie potrzeba żadnego przeliczania adresów, jeśli komórki pamięci mają również po jednym bajcie), a więc sprzętowa implementacja instrukcji skoku ulega znacznemu uproszczeniu.
+
+\subsection{Typechecker}
+
+Jak zostało wspomniane, język jest statycznie typowany, co oznacza, że kompilator może stwierdzić poprawność programów w zakresie typów danych i zgłosić ewentualne błędy. Zaletą takiego podejścia jest ograniczenie ilości błędów w czasie wykonania programu. Dodatkowo, statyczne typowanie znacząco ułatwia refaktoring kodu oraz zmiany w programie. Wyobraźmy sobie funkcję zwracającą wartości typu $Int$, którą wykorzystujemy w wielu miejscach w programie. Załóżmy również, że mamy typ zespolony będący parą liczb typu $Double$. W języku dynamicznie typowanym zmieniając wartość zwracaną przez funkcję na taki typ musimy (ręcznie bądź z pomocą IDE) znaleźć wszystkie miejsca, w których wołana jest funkcja i odpowiednio zmienić logikę programu. Kompilator języka statycznie typowanego ostrzeże nas o każdym niedopasowaniu typów, również w przypadku, gdy przeoczymy użycie funkcji w innym pliku, nie pozwalając na kompilację błędnego programu.
+
+System typów naszego języka jest z jednej strony celowo ograniczony jeśli chodzi o liczbę dostępnych typów (możemy operować tylko na wartościach całkowitych, skalarnych i wektorowych), a z drugiej strony wprowadza ciekawą funkcjonalność w postaci kontroli długości wektorów w czasie kompilacji. Jest to bardzo ograniczona implementacja tzw. ,,dependent typing'' (typów zależnych [od wartości]), czyli pomysłu na uzależnienie typu od wartości tego typu. Najczęściej podawanym w literaturze przypadkiem użycia typów zależnych są właśnie listy wraz z zakodowaną długością. Dzięki temu możemy w czasie kompilacji wykrywać takie błędy jak pobieranie głowy pustej listy, których programiści często nie zauważają w kodzie i które mogą się ujawnić dopiero po długim czasie działania programu. W naszym języku typy zależne służą do kontroli poprawności obliczeń na wektorach: dodawać/odejmować możemy tylko wektory o takich samych długościach, a iloczyn skalarny dwóch wektorów daje w wyniku skalar. Dzięki temu możemy być pewni, że w czasie działania programu użytkownik nie zostanie zaskoczony niespodziewanym błędem. Dodatkowo, deklaracja wektora wymaga podania jego długości. Zapobiega to kolejnemu częstemu przeoczeniu: w języku C możemy zadeklarować tablicę dziewiętnastu elementów i zainicjalizować ją tylko osiemnastoma. Wynik prostego błędu może spowodować trudne do wyśledzenia nieporządane zachowanie programu. Nasz język wymaga, by przy deklaracji wektora podać liczbę jego elementów i zainicjalizować go właśnie tyloma wartościami.
+
+Sprawdzanie zgodności długości wektorów odbywa się poprzez rekurencyjną analizę operandów każdego wyrażenia wymagającego zgodności wymiarów (przypisanie i operacje arytmetyczne). Przykładowo, by sprawdzić zgodność wyrażenia binarnego staramy się wyinferować i porównoać liczbę elementów każdego z operandów. Jako że operandy same w sobie mogą być wyrażeniami, musimy sprawdzić również ich typ. W ten sposób przechodzimy całe drzewo AST, sprawdzając jego poprawność pod względem typów.
+
+Aby implementować to i kolejne przejścia po AST z jednoczesnym zbieraniem informacji w pewnych strukturach i zgłaszaniem wyjątków, stosujemy jedną z zaawansowanych technik języka Haskell --- ,,\textit{monad transformers}''. Umożliwiają one połączenie funkcjonalności dwóch monad (zwykłe złożenie monad nie daje nam takich możliwości). Na rysunku \ref{fig:type-state} widzimy deklarację typu pozwalającego na odczyt i zapis do stanu skojarzonego z wyrażeniem za pomocą funkcji \texttt{get} i \texttt{put}, jak również przerywanie działania typecheckera za pomocą instrukcji \texttt{throwE}, działającej w sposób zbliżony do wyjątków w językach Java czy Scala. Jednocześnie nie tracimy żadnej z zalet programowania funkcyjnego, gdyż program nie łamie żadnego z jego założeń.
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.5]{images/type-state.png}
+    \caption{Przykład zastosowania Monad Transformers do uzyskania struktury pozwalającej na przetrzymywanie stanu i rzucanie wyjątków bez wychodzenia poza czysto funkcyjny paradygmat.}
+    \label{fig:type-state}
+  \end{center}
+\end{figure}
+
+\subsection{Vectors}
+
+Ten niewielki moduł jest istotnym elementem koncepcji procesora wektorowego. Odpowiada za podział wektorów na kawałki po osiem elementów (w przypadku, gdy długość wektora jest niepodzielna przez osiem, ostatni kawałek jest dopełniany zerami do pełnej ósemki -- w ten sposób zawsze operujemy na ośmioelementowych kawałkach (,,\textit{chunks}'') co pomaga w zaprojektowaniu procesora. Przykładowo, skalar \texttt{5} zostanie przerobiony na wektor \texttt{[0, 0, 0, 0, 0, 0, 0, 5]}, a dziesięcioelementowy wektor \texttt{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]} zostanie podzielony na dwa kawałki: \texttt{[0, 0, 0, 0, 0, 0, 0, 1, 2]} oraz \texttt{[3, 4, 5, 6, 7, 8, 9, 10]}. Kawałki są zaimplementowane jako osobny typ danych \texttt{Chunk}, dzięki czemu generator assemblera może traktować dowolny wektor jako listę kawałków (\texttt{[Chunk]}) i ich poprawność będzie statycznie sprawdzana.
+
+Moduł \texttt{Vectors} udostępnia funkcje do konwersji skalarów na wektory oraz podziału długich wektorów na kawałki -- w ten sposób wynikowy kod assemblera nigdy nie zawiera skalarów ani wektorów o niespodziewanych długościach.
+
+
+\subsection{Generator}
+
+Jeden z głównych (obok Parsera) modułów kompilatora, odpowiedzialny za generację kodu assemblera na podstawie abstrakcyjnego drzewa syntaktycznego. W zarysie idea polega na przejściu całego drzewa AST i generacji assemblera dla każdego napotykanego węzła w drzewie. Proces ten rekurencyjnie zagłębia się w złożone struktury, generując assembler dla podwyrażeń. Przykładowo, chcąc wygenerować kod dla operacji binarnej musimy najpierw wygenerować kody dla wyliczenia obydwu jej operandów i użyć ich do odpowiedniego skonstruowania ostatecznego kodu instrukcji. Język Haskell wyjątkowo dobrze nadaje się do tego typu operacji, udostępniając programiście omawiane już algebraiczne typy danych (,,algebraic datatypes''), na których z łatwością możemy stosować tzw. ,,pattern matching'', czyli dopasowywanie konstruktora typu do wzorca, używane przy deklaracji funkcji i wyrażeniach warunkowych \texttt{case}. Dzięki temu ułatwione jest trawersowanie drzew: w każdym węźle możemy wykonać ,,\textit{pattern matching}'' i dopasować podejmowane działania w zależności od rodzaju liścia. Przyjrzyjmy się funkcji przetwarzającej na kod assemblera pojedyncze wyrażenie (\texttt{Expr}), widocznej na rysunku \ref{fig:processExpr}.
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.5]{images/processExpr.png}
+    \caption{Przykład zastosowania pattern matchingu do przetwarzania typu danych z wieloma konstruktorami.}
+    \label{fig:processExpr}
+  \end{center}
+\end{figure}
+
+Kolejnym ciekawym mechanizmem zastosowanym w omawianym przykładzie jest użycie tzw. aplikatywów (,,applicatives''), będących nieco mniej ekspresyjną wersją monad. Udostępniają możliwość wykonywania sekwencyjnie obliczeń i umieszczania ich w pewnym kontekście, ale nie dają tak wielu funkcjonalności i nie mają tak rozwiniętej syntaktyki jak monady. W powyższym przykładzie ich użycie sprowadza się do użycia operatora \texttt{*>}, wykonującego swój prawy operand i zwracającego wartość lewego operandu. Warto zaznaczyć, że, podobnie jak w przypadku monad, zyskujemy możliwość sekwencyjnego wykonywania akcji, a nie tracimy żadnej z zalet programowania funkcyjnego.
+
+W nowych wersjach Haskella (od 7.10 w górę) każda monada jest równocześnie aplikatywem, ale nie na odwrót.
+
+Działanie generatora nie ogranicza się do prostego przetwarzania każdego wyrażenia. Dzięki użyciu podobnego zabiegu, jak w przypadku Typecheckera, rekurencyjne trawersowanie po drzewie odbywa się przy towarzyszeniu stanu, w którym przetrzymywane są informacje o bieżącym stanie generacji. Są to w szczególności: wygenerowany do tej pory assembler, dane o przypisaniu stałych w tablicy stałych, całość AST, które przetwarzamy (pozwala nam się to odnosić globalnie do całości drzewa przy przetwarzaniu poszczególnych instrukcji; w przeciwnym razie każde rekurencyjne zejście pozbawia nas informacji o ,,korzeniach'' drzewa, której być może będziemy potrzebować do analizy bardziej złożonych instrukcji), tablica symboli, czyli przypisania do nazw zmiennych informacji o nich, informacja o dostępnych adresach alokacji zmiennych w pamięci i dostępne etykiety do skoków. Całość tej informacji trzymana jest w jednym typie danych: \texttt{GeneratorData}, którego budowa przedstawiona jest na rysunku \ref{fig:generator-data}.
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.5]{images/generator-data.png}
+    \caption{Struktura danych do przechowywania informacji o stanie generacji kodu assemblera wraz z towarzyszącymi strukturami.}
+    \label{fig:generator-data}
+  \end{center}
+\end{figure}
+
+Oprócz tego, Generator używa wielu pomocniczych funkcji w celu sprawdzania adresów, które przypisuje zmiennym, wyszukiwania informacji zmiennych w mapie -- tablicy symboli, sprawdzania długości wektorów, konwersji pętli i instrukcji warunkowych na logikę używającą skoków warunkowych i bezwarunkowych oraz wielu innych. Dodatkowo, zawiera kod obsługujący błędy czasu kompilacji za pomocą zgłaszania wyjątków. Podobnie jak przy typecheckingu jest to możliwe w elegancki i czysto funkcyjny sposób dzięki zastosowaniu \textit{monad transformers}.
+
+Reasumując, Generator jest jednym z najbardziej rozbudowanych modułów kompilatora i używa wielu zaawansowanych technik języka Haskell. Dzięki temu możliwe było napisanie go w zwięzły, niezawodny i przejrzysty sposób, bez jednoczesnego poświęcania wygody tworzenia oprogramowania. Jest to jeden z modułów, w którym dobitnie przejawia się sensowność użycia języka Haskell jako głównej technologii przy tworzeniu kompilatora.
+
+\subsection{LabelRename}
+
+Moduł ten służy do opisanego już zamieniania skoków do etykiet na skoki do konkretnych adresów instrukcji. By możliwe było to w łatwy sposób do assemblera zostały wprowadzone dwie dodatkowe instrukcje: obok \texttt{Jump} (instrukcja skoku) i \texttt{JumpZ} (instrukcja skoku warunkowego), mamy także \texttt{JumpIP} i \texttt{JumpIPZ}, które mają analogiczną semantykę, ale zamiast skakać do etykiet, skaczą do konkretnych wartości wskaźnika instrukcji (\textit{Instruction Pointer} -- IP). W przyjętej przez nas architekturze procesora, w szczególności przy jednobajtowych instrukcjach i osobnej pamięci instrukcji, wartość wskaźnika instrukcji jest tożsama z adresem w pamięci odpowiadającej mu instrukcji. Dzięki takim zabiegom możliwe jest zrealizowanie konwersji skoków w relatywnie nieskomplikowany sposób:
+
+\begin{itemize}
+  \item dla każdej instrukcji warunkowej (\texttt{if}) i każdej pętli (\texttt{loop}), generujemy odpowiednie etykiety i skoki do nich
+  \item po wygenerowaniu całego kodu assemblera numerujemy linie (będą to przyszłe adresy instrukcji w pamięci)
+  \item przeglądamy po kolei instrukcje i jeśli znajdziemy etykietę pobieramy jej numer linii; następnie znajdujemy wszystkie instrukcje skoku do tej etykiety i zamieniamy je na instrukcje skoku do wskaźnika instrukcji, podając pobrany numer linii jako argument
+\end{itemize}
+
+W ten sposób nasz kod assemblera nie zawiera już odniesień do etykiet, a jedynie instrukcje zrozumiałe dla procesora, każące mu jako następną przetwarzaną instrukcję załadować instrukcję spod określonego adresu w pamięci. Warto zwrócić uwagę, że etykiety nie są usuwane, a będą pomijane przez procesor --- wykonanie jednej dodatkowej, pustej instrukcji dla każdej instrukcji ma zaniedbywalny koszt podczas wykonania programu (zajmuje to 3 cykle zegara), a uproszczenie konwersji etykiet jest znaczące: nie musimy przenumerowywać instrukcji, co podniosłoby złożoność algorytmu. Proces jest dość kosztowny czasowo, jako że jego złożoność czasowa to $\mathcal{O}(n^2)$, gdzie n jest liczbą instrukcji assemblera, ale nie ma to większego wpływu na wydajność całego procesu kompilacji, gdyż w porównaniu z generacją assemblera czy parsingiem będzie to zawsze niewielka wartość (liczba instrukcji powstająca w wyniku kompilacji jest dla tej architektury stosunkowo niewielka). Dodatkowo, takie przetworzenie etykiet znacząco upraszcza działanie układu przetwarzającego instrukcje w procesorze.
+
+
+\subsection{Binary}
+
+Ostatni etap kompilacji, polegający na konwersji instrukcji assemblera (zapisanych jako typy danych języka Haskell, ale posiadających również czytelną reprezentację tekstową) na postać binarną, gotową do wysłania przez port szeregowy do procesora. Decyzje podjęte podczas projektowania protokołu binaryzacji mają duży wpływ na obsługę transmisji i dekodowania instrukcji w procesorze. Początkowa koncepcja zakładała przesyłanie jednobajtowych instrukcji z wielobajtowymi operandami (m.in. z wektorami zapisanymi jako operandy instrukcji push). Po konsultacjach uznano, że najkorzystinejsza forma instrukcji to instrukcje o stałej, jak najmniejszej liczbie bajtów. Instrukcję \texttt{Push} przerobiono tak, by zamiast przetrzymywać stałe programu jako operandy, odczytywała jest z tablicy stałych, a jako operand przetrzymywała jedynie adres w tej tablicy. Pozostawał jeszcze problem z instrukcjami skoku, które posiadają sześciobajtowy adres jako argument. Istniała obawa, ze instrukcje będą musiały mieć dwa bajty: po jednym na instrukcję i jej argumenty. Okazało się jednak, że dzięki zastosowaniu bezprefiksowego kodowania instrukcji jesteśmy w stanie zmieścić wszystkie instrukcje wraz z argumentami na jednym bajcie, co przyniosło wiele korzyści.
+
+Bezprefiksowe kodowanie oznacza, że żadna instrukcja nie może być przedrostkiem innej instrukcji. Dzięki temu możemy zakodować instrukcje skoku jako posiadające najstarszy bajt ustawiony na 1, a resztę bajtów przeznaczyć na adres. Inne instrukcje, dla których bajty 2-8 będą nie adresem, a częścią instrukcji, muszą mieć pierwszy bajt ustawiony na 0. Dzięki temu uzyskujemy optymalne wykorzystanie dostępnej przestrzeni kodowań i brak niejednoznaczności.
