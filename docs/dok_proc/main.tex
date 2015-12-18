@@ -1,0 +1,47 @@
+\documentclass[12pt,twoside]{report}
+\usepackage[utf8]{inputenc}
+\usepackage{polski}
+\usepackage{mathtools}
+\DeclarePairedDelimiter{\abs}{\lvert}{\rvert}
+\usepackage{graphicx}
+\usepackage[section]{placeins}
+\usepackage{caption}
+\usepackage{gensymb}
+\usepackage{subcaption}
+\usepackage[a4paper,width=150mm,top=25mm,bottom=25mm,bindingoffset=6mm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\linespread{1.3}
+\pagestyle{fancy}
+\fancyhead{}
+\fancyhead[RO,LE]{System przetwarzania danych wektorowych oparty na układzie FPGA}
+\fancyfoot{}
+\fancyfoot[LE,RO]{\thepage}
+\fancyfoot[LO,CE]{Rozdział \thechapter}
+\fancyfoot[CO,RE]{Dyczek, Moczurad}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\title{Thesis Title}
+\author{Author Name}
+\date{Day Month Year}	
+
+\begin{document}
+	\input{titlepage}
+	\tableofcontents	
+	
+	\chapter{Metodyka}
+    \input{chapters/one}
+    
+    \chapter{Studium wykonalności}
+    \input{chapters/two}
+    
+    \chapter{Analiza ryzyka}
+    \input{chapters/three}
+
+    \chapter{Przebieg prac}
+    \input{chapters/four}
+    
+    \chapter{Podsumowanie}
+    \input{chapters/five}
+    
+\end{document}
