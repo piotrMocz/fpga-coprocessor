@@ -173,6 +173,14 @@ Bezprefiksowe kodowanie oznacza, że żadna instrukcja nie może być przedrostk
 
 Koprocesor został zaimplementowany na układzie FPGA, a do opisu sprzętu użyto języka VHDL (Very High Speed Integrated Circuits Hardware Description Language). Jako dostawcę płytek wybrano firmę Altera --- projekt był testowany na zestawie uruchomieniowym Altera De0-nano. Jest to niewielka, edukacyjna płytka, która mimo to posiada stosunkowo współczesny układ FPGA Cyclone IV. Oprócz tego, płytka posiada dużą ilość pinów GPIO (\textit{General Purpose Input/Output} -- wejście/wyjście ogólnego przeznaczenia), z których możemy korzystać do podłączania rozmaitych urządzeń peryferyjnych, jak w naszym przypadku przewodów transmisji UART.
 
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.5]{images/schemat.png}
+    \caption{Przeglądowy schemat wyprowadzeń układu. Schemat komponentu loopback, choć dużo ciekawszy, jest zbyt złożony, by w całości przedstawić go na jednym rysunku (jest na nim prawie pięć tysięcy elementów).}
+    \label{fig:schemat}
+  \end{center}
+\end{figure}
+
 Do tworzenia projektu na FPGA użyto dedykowanego do układów Altery środowiska Quartus II, które dostarcza pełny zestaw narzędzi do tworzenia i testowania projektów FPGA. Quartus posiada przede wszystkim zaawansowany kompilator, syntezator i \textit{fitter}, które potrafią z opisu w języku VHDL utworzyć fizyczny rozkład bramek na płytce. Jest to wysoce nietrywialne zadanie, jako że muszą one najpierw stworzyć na podstawie opisu poprawny układ elektroniczny, a następnie wielokrotnie go optymalizować tak, by spełnił wymagania czasowe, napięciowe oraz przestrzenne. Istotnym parametrem syntezy i \textit{fittingu} jest ukierunkowanie na szybkość układu lub niską liczbę bramek (są to wzajemnie wykluczające się wartości). Do budowania projektu używano ustawień nastawionych na jak największą szybkość: kompletny układ zajmuje około 4500 elementów logicznych, czyli 25\% zasobów płytki. Z tego powodu można było sobie pozwolić na optymalizację pod kątem czasu działania.
 
 W następnych akapitach opisane zostaną główne komponenty wchodzące w skład koprocesora. Każdy z nich jest osobną jednostką (\textit{entity}) języka VHDL.
@@ -216,3 +224,94 @@ Na rysunku widać podział maszyny na trzy części, na diagramie ułożone od
   \item \texttt{Sending2} -- czeka, aż UART potwierdzi wysłanie bajtów i podejmuje szereg decyzji. Jeśli nie został wysłany cały bufor, wraca do stanu \texttt{MockState}. Jeśli bufor został wysłany, ale stos jeszcze nie jest pusty, wraca do stanu \texttt{Sending}. Jeśli stos jest pusty przechodzi do stanu \texttt{LastByte}.
   \item \texttt{LastByte} i \texttt{LastByte2} -- odpowiedzialne za wysłanie kończącego bajtu złożonego z samych jedynek. Dzięki temu program odbierający dane wie, że należy zakończyć transmisję.
 \end{itemize}
+
+\subsection{Stos}
+
+Stosy używane są w programie w trzech miejscach (główny stos i dwa stosy pomocnicze do operacji wektorowych), jednakże są instancjami tej samej \textit{entity}, znajdującej się w pliku \texttt{stack.vhdl}. Stos działa na prostej zasadzie: oparty jest o pamięć, będącą tablicą ośmiobajtowych wektorów i wskaźnik stosu, który mówi nam, gdzie obecnie znajduje się wierzchołek stosu. Wybrana wersja stosu to stos rosnący w kierunku malejących adresów, ze wskaźnikiem stosu wskazującym pierwsze wolne miejsce do zapisu elementu. Alternatywnie stos mógłby rosnąć w kierunku rosnących adresu, a wskaźnik stosu wskazywać pierwszy element na stosie. Funkcjonalność stosu pozostaje niezmieniona po wybraniu innego podejścia do obsługi wskaźnika stosu, ale podejście zastosowane przez nas jest z powodzeniem stosowane w dużej ilości implementacji.
+
+Stos posiada dwie istotne flagi: \texttt{enable} oraz \texttt{command}. Pierwsza z nich uruchamia stos, który dopiero gdy jest ona zapalona będzie analizował kolejną z flag (gdybyśmy nie mieli takiej flagi, to stos cały czas wykonywałby ostatnio wykonaną operację, czyli albo zapełniłby się cały jedną wartością, albo całkowicie opróżnił, jako że wejście do procesu kontrolującego stos następuje przy każdym zboczu rosnącym sygnału zegarowego). Flaga \texttt{command} mówi o rodzaju operacji, jaką należy wykonać na stosie, czyli \texttt{push} lub \texttt{pop}. A zatem wrzucanie elementu na stos odbywa się za pomocą następującej sekwencji działań:
+
+\begin{itemize}
+  \item ustawiamy flagę \texttt{enable} na \texttt{'1'}, flagę \texttt{command} na \texttt{'0'} i zapisujemy do wektora \texttt{push\_data} dane, które chcemy umieścić na stosie
+  \item odczekujemy jeden cykl, aby sygnały zdążyły się ustalić (wartość z \texttt{push\_data} musi zostać przekopiowana, a wartość wskaźnika stosu musi zostać dekrementowana.
+\end{itemize}
+
+Podobnie przebiega odczyt ze stosu:
+\begin{itemize}
+  \item ustawiamy flagę \texttt{enable} na \texttt{'1'}, flagę \texttt{command} na \texttt{'1'}
+  \item w kolejnym cyklu przypisujemy wartość \texttt{pop\_data} do docelowego bufora
+  \item dopiero w następnym cyklu wartość w buforze jest ustalona
+\end{itemize}
+
+Warto zwrócić uwagę, że zapis na stos zajmuje dwa cykle zegara, a odczyt trzy i należy to wziąć pod uwagę podczas obsługi stosu w maszynie stanów. Podczas tworzenia projektu podobne niedopatrzenia były źródłem wielu problemów, które skutkowały niedeterministycznym zachowaniem układu. Stos operuje na ośmiobajtowych wektorach, reprezentujących jeden ,,kawałek'' (\textit{Chunk}) w nomenklaturze kompilatora. Dzięki temu \texttt{push} i \texttt{pop} są operacjami atomowymi dla ośmioelementowych kawałków wektorów.
+
+Stos jest tak zaimplementowany, by Quartus inferował tablicę wektorów, do której zapisywane są wartości, jako pamięć RAM i zamiast elementów logicznych używał do tego statycznej pamięci RAM dostępnej na płytce. Powoduje to dużą oszczędność zasobów, tym bardziej, że na płytce mamy dostępne zaledwie 
+
+\subsection{Pamięć RAM}
+
+Pamięć RAM, podobnie jak stos, operuje na ośmiobajtowych wektorach. Wejścia komponentu to flaga \texttt{write\_enable} oraz adresy zapisu i odczytu. Odczyt dostępny jest zawsze, bo w żaden sposób nie ingeruje w zawartość pamięci. Aby odczytać wartość wystarczy ustawić adres odczytu, a po odczekaniu jednego cyklu pobrać wartość z wyjścia pamięci. Aby zapisać wartość należy ustawić flagę \texttt{write\_enable} i odpowiedni adres zapisu. W kolejnym cyklu należy wkopiować do wejścia pamięci wartość, którą chcemy zapisać. W następnym cyklu wartość będzie zapisana w pamięci. Ten sposób obsługi pamięci nie pozwala na sytuację jednoczesnego zapisu i odczytu. Nie jest to dla nas problemem, gdyż w naszym koprocesorze taka sytuacja nigdy nie może mieć miejsca.
+
+Ilość cykli potrzebnych do operacji na pamięci jest odwrotna niż w przypadku stosu: zapis zajmuje trzy cykle, a odczyt jedynie 2. Tutaj również zapis i odczyt są operacjami atomowymi dla ośmioelementowych wektorów.
+
+
+\subsection{Pamięć instrukcji}
+
+Działa na identycznej zasadzie jak pamięć RAM (wewnętrznie jest pamięcią RAM, ale wprowadzamy nazwę ,,pamięć instrukcji'' dla rozróżnienia jej od pozostałych pamięci). Różnicą jest jedynie długość adresu (sześć bajtów) i operowanie na pojedynczych bajtach, zamiast na ośmioelementowych wektorach. Pamięć instrukcji jest liniowo zapełniana podczas odbierania instrukcji przez UART, a podczas działania procesora układ interpretujący instrukcje pobiera z niej po bajcie spod adresu wskazywanego przez aktualną wartość wskaźnika instrukcji.
+
+
+\subsection{Pamięć stałych}
+
+Pamięć stałych działa w nieco inny sposób niż pamięć RAM i pamięć instrukcji. Struktura jest dość podobna (mamy flagę \texttt{write\_enable}, bufor zapisu i odczytu oraz adres zapisu i adres odczytu), jednak zapis i odczyt nie są symetryczne, jak w poprzednim przypadku. Do pamięci zapisujemy po bajcie, jako że stałe do zapisania przychodzą przez port szeregowy po bajcie. Odczyt natomiast jest w kawałkach ośmioelementowych, gdyż procesor operuje tylko na takich wartościach. Taka asymetria powoduje, że z jednej strony używanie tej pamięci w maszynie stanów procesora jest niezwykle łatwe (nie trzeba manualnie przeliczać adresów ani iterować po bajtach), ale ma swoje konsekwencje: kompilator nie potrafi (nie jest to możliwe) wyinferować statycznej pamięci RAM, więc tracimy nieco zasobów płytki. Nie jest to jednak w żadnej mierze problemem, jako że nie brakuje zasobów na płytce, a projekt procesora sam w sobie jest bardzo kompaktowy.
+
+
+\subsection{ALU}
+
+Jednostka arytmetyczno-logiczna (\textit{Arithmetic-Logic Unit} -- ALU), odpowiadająca za wykonywanie działań na ośmioelementowych kawałkach wektorów. Każde z działań wykonywane jest w jednym cyklu zegara (ściśle mówiąc, logika ALU jako jedynej jednostki w projekcie nie jest synchroniczna; natura wykonywanych operacji pozwala je zaimplementować jako kombinacyjne funkcje wejść, co nie wprowadza takich opóźnień jak sekwencyjne przetwarzanie stanów, działająć natychmiast).
+
+Operacje wykonywane przez ALU to:
+\begin{itemize}
+  \item suma -- nowy wektor powstaje przez dodanie odpowiadających sobie elementów wektorów wejściowych
+  \item różnica -- jak w przypadku sumy, tylko dla odejmowania
+  \item mnożenie \textit{element-wise} -- nowy wektor powstaje przez wymnożenie ze sobą odpowiednich elementów wektorów wejściowych (nie mylić z iloczynem skalarnym wektorów)
+  \item dzielenie -- analogicznie do mnożenia \textit{element-wise}
+  \item modulo -- każdy i-ty element wektora wyjściowego powstaje przez wyliczenie reszty z dzielenia i-tego elementu pierwszego operandu przez i-ty element drugiego operandu
+  \item iloczyn skalarny -- dla wektorów $u$ i $v$ ich iloczyn skalarny wyliczamy jako $u \circ v = \sum_{i=1}^{\|u\|} v_i u_i $
+  \item rotacja -- przyjmuje ośmioelementowy wektor, reprezentujący cztery punkty w dwuwymiarowej przestrzeni i obraca go względem punktu $(255, 255)$
+\end{itemize}
+
+\subsection{UART}
+
+Obsługa portu szeregowego została zaimplementowana z wykorzystaniem modułu UART autorstwa Petera Benetta (https://github.com/pabennett). Z dostępnych publicznie implementacji ta wydaje się najstaranniej napisana i w naszych testach dawała zdecydowanie najlepsze wyniki. Obsługa modułu wymaga jednak pewnej uwagi, gdyż pomyłka o jeden cykl może spowodować zupełnie niespodziewane zachowanie transmisji. Moduł posiada dwa interfejsy: pierwszy, fizyczny, to po prostu dwa przewody: RX i TX, które wystarczy podłączyć do pinów GPIO na płytce. Ich obsługą zajmuje się sam moduł UART i korzystający z niego nie musi się tym zajmować. Drugi interfejs jest ,,wewnętrzny'', co oznacza, że korzystać z niego będzie maszyna stanów procesora by odbierać i wysyłać dane.
+
+Aby wysłać bajt danych przez interfejs UART należy wykonać następującą sekwencję czynności:
+\begin{itemize}
+  \item załadować bajt do bufora wyjściowego
+  \item ustawić flagę powodującą rozpoczęcie transmisji
+  \item poczekać, aż ustawiona zostanie flaga potwierdzająca wysłanie całego bajtu
+  \item w tym samym cyklu, w którym odczytaliśmy potwierdzenie wysłania należy wyłączyć flagę transmisji (w przeciwnym razie układ zacznie wysyłać kolejny bajt)
+\end{itemize}
+
+Aby odebrać bajt sekwencja wygląda następująco:
+\begin{itemize}
+  \item czekamy na ustawienie flagi informującej o przyjściu nowej wartości do bufora odbiornika
+  \item gdy zostanie zapalona wspomniana flaga, ustawiamy flagę mówiącą o zaakceptowaniu przez nas wartości w buforze
+  \item w kolejnym cyklu flaga zaakceptowania wartości musi zostać wyłączona
+\end{itemize}
+
+Widzimy, że istotne jest poprawne zsynchronizowanie wsystkich operacji dotyczących transmisji przez UART, gdyż pomyłka (na przykład ustawienie którejś z flag o jeden cykl zegara zbyt wcześnie lub zbyt późno) może skutkować otrzymaniem przez odbiorcę zupełnie przekłamanych danych.
+
+\section{Komunikacja}
+
+Komunikacja od strony układu FPGA została już szczegółowo opisana w poprzedniej sekcji. Pozostaje zatem wspomnieć o komunikacji od strony komputera PC. Pierwotnie komunikacja prowadzona była za pośrednictwem komputera Raspberry Pi, który wydawał się idealny do tego celu z racji posiadania złącz GPIO obsługujących UART. Szybko okazało się jednak, że komunikacja na Raspberry Pi działa w nieprzewidywalny i częstokroć błędny sposób, przekłamując dane i dodając do nich bajty na początku i końcu transmisji. Wybór padł zatem na rozwiązanie prostsze i skuteczniejsze: zastosowano przejściówkę USB-UART, którą podłącza się do portu USB i która posiada piny RX, TX i GND (masę). Dzięki temu podłączamy ją do układu FPGA zwykłymi żeńskimi przewodami bezpośrednio do portów GPIO (opcjonalnie wpinamy jeszcze oporniki $1k\Omega $, by chronić układ przed ewentualnymi uszkodzeniami, choć nie jest to konieczne), a transmisja działa bez zarzutu.
+
+Obsługa portu szeregowego w systemie Linux jest niezwykle prosta: używając biblioteki \texttt{termios} możemy otworzyć systemowe urządzenie (w przypadku przejściówki używanej z systemem Fedora 22 znajdziemy je pod ścieżką \texttt{/dev/ttyUSB0}), ustawić wszystkie potrzebne parametry (pamiętając, że muszą być takie same jak po stronie układu FPGA; w naszym przypadku zdecydowaliśmy się na osiem bitów danych, jeden bit stopu, brak kontroli parzystości oraz \textit{baud rate} wynoszący $115200 b/s$). Na rysunku \ref{fig:uart} znajduje się przykład konfiguracji portu szeregowego w języku C.
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.5]{images/uart.png}
+    \caption{Konfiguracja portu szeregowego w języku C na systemie Linux.}
+    \label{fig:uart}
+  \end{center}
+\end{figure}
+
+Wysyłanie i odbieranie danych odbywa się za pomocą systemowych funkcji \texttt{read} i \texttt{write}, których używamy w dokładnie taki sam sposób, jak przy pisaniu do plików czy innych urządzeń wejścia/wyjścia. 
