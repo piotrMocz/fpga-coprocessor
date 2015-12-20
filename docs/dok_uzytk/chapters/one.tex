@@ -1,3 +1,4 @@
+Dostarczony system składa się z kompilatora, programu do wysyłania binarnego pliku na zestaw startowy oraz procesora do uruchomienia na płytce FPGA. W razie gdyby użytkownik chciał samemu rozwijać dalej system lub po prostu go skompilować w poniższym rozdziale poza standardowym opisem kolejnych kroków podajemy również - na samym jego początku - jak zbudować kompilator z kodu źródłowego i jak uruchomić procesor na FPGA.
 \section{Instalacja systemu i niezbędnych składników}
 Podstawowym składnikiem potrzebnym do skompilowania haskellowej części projektu jest platforma Haskella. W skład jej wchodzą:
 \begin{description}
@@ -32,21 +33,22 @@ Do uruchomienia projektu potrzebny jest zestaw startowy z układem FPGA. Projekt
 Komunikacja komputera PC z zestawem FPGA odbywa się za pomocą układu UART w związku z tym do przesłania pliku potrzebny jest \textbf{Konwerter USB-UART}. W projekcie wykorzytaliśmy Konwerter USB-UART PL2303 umożliwiający komunikacje pomiędzy interfejsami szeregowymi USB i UART widoczny w systemie jako wirtualny port COM.
 \begin{figure}[!ht]
 \centering
-\includegraphics[scale=0.1]{images/usb-uart}
+\includegraphics[scale=1]{images/usb-uart}
 \caption{USB-UART PL2303 - wtyk USB}
 \end{figure}
-Pin GND konwertera należy połączyć z Pinem GND zestawu startowego(np. PIN12 JP1 lub PIN12 JP2). Pin TXD konwertera łączymy z pinem GPIO 11 natomiast Pin RXD z pinem GPIO 9.\\
-Zestaw startowy należy podłączyć do komputera również poprzez dołączony kabel USB co umożliwi wgrywanie oprogramowania poprzez interfejs USB-BLASTER. Złącza RX i TX zaleca się oddzielić opornikiem o wartości 1K\ohm\space jednak z własnego doświadczenia możemy dodać, że nie jest to konieczne.
+Pin GND konwertera należy połączyć z Pinem GND zestawu startowego(np. PIN12 JP1 lub PIN12 JP2). Pin TXD konwertera łączymy z pinem GPIO 11 natomiast Pin RXD z pinem GPIO 9.
 \begin{figure}[!ht]
 \centering
 \includegraphics[scale=0.1]{images/full_connected}
 \caption{Podpięty cały zestaw}
 \end{figure}
-\section{Krótki kurs języka}
+Zestaw startowy należy podłączyć do komputera również poprzez dołączony kabel USB co umożliwi wgrywanie oprogramowania poprzez interfejs USB-BLASTER. Złącza RX i TX zaleca się oddzielić rezystorem o wartości 1K\ohm\space jednak z własnego doświadczenia możemy dodać, że nie jest to konieczne.
+\section{Krótki kurs zaimplementowanego języka}
+Planując język programowania wzorowaliśmy się na rozwiązaniach takich jak w ęzyku Ruby czy Python. Chcieliśmy by użytkownik nie musiał używać znaków takich jak średniki a równocześnie nie musiał zwracać uwagi na odpowiednie wcięcia i odstepy. Udało nam się uzyskać składnię która pozostając zawsze bardzo czytelną daje programiście możliwość formatowania kodu wedle własnego uznania.
 \subsection{Znaki białe}
 W zaproponowanym przez naz języku białe znaki (odstęp, nowa linia, wcięcie) są przez parser ignorowane.
 Rozwiązanie takie daje możliwość formatowania kodu w sposób najbardziej elastyczny, zależny od potrzeb użytkownika. To samo wyrażenie można zapisać w wielu liniach na sposób możliwie czytelny lub jednej by otrzymać zwięzły, niewielki wizualnie kod.
-Dla przykładu dane poniżej 2 formatowania skutkują w równoważnym kodzie:
+Dla przykładu, przytoczone poniżej listingi zawierają ten sam program a różnią się jedynie formatowaniem:\\
 \begin{lstlisting}[frame=single]
 x:Int = if a
         then b = a * 2
@@ -58,9 +60,9 @@ x:Int = if a
 \begin{lstlisting}[frame=single]
 x:Int = if a then b=a*2 b+a else b=(a+1)*2 b-1 end
 \end{lstlisting}
-
+Jak widać nawet prostą instukcje warunkową \textbf{if} można zapisać w sposób bardzo czytelny jak w pierwszym przykładzie lub zwięzły - jak w drugim.
 \subsection{Komentarze}
-Dane są 2 rodzaje komentarzy - liniowe \texttt{\#} oraz blokowe \texttt{\string{\# ... \#\string}}
+Dane są 2 rodzaje komentarzy - liniowe \texttt{\#} oraz blokowe \texttt{\string{\# ... \#\string}}\\
 \begin{lstlisting}[frame=single]
 # komentarz liniowy
 {#
@@ -69,18 +71,17 @@ blokowy
 ...
 #}
 \end{lstlisting}
-
+Wzorując się na wielu innych językach dajemy użytkownikowi możliwość wykorzystania dwóch rodzajów komentarzy.
 \subsection{Literały}
-W aktualnej fazie rozwoju projektu język dostarcza 2 rodzaje literałów - liczby całkowite oraz tablice liczb całkowitych:
+Będąc ograniczeni przez ilość bramek logicznych na układzie FPGA dostarczamy użytkownikowi 2 rodzaje literałów - liczby całkowite oraz wektory liczb całkowitych:\\
 \begin{lstlisting}[frame=single]
 1024
 [1, 2, 4, 8, 16, 32, 64, 128]
 \end{lstlisting}
-
+Liczby całkowite jak i pojedyncze elementy wektora należą do przedziały [0,255].
 \subsection{Zmienne, deklaracje zmiennych i przypisanie do zmiennej}
 Każde wyrażenie w języku ma jeden z dwóch typów - \textbf{Vector} lub \textbf{Scalar}. Dodatkowo typ Vector parametryzowany jest jedną liczbą naturalną - długością wektora.
-Każda zmienna przed użyciem musi zostać zadeklarowana. Nie można zadeklarować zmiennej nie inicjalizując jej jednocześnie. Mechanizm ten chronić ma przed przypadkowymi błędami częstymi w innych językach. \\
-Przykłady deklaracji:
+Przykłady deklaracji:\\
 \begin{lstlisting}[frame=single]
 # deklaracje zmiennych skalarnych
 a:Int = 4
@@ -95,9 +96,8 @@ a = 4
 a = [1,2,3] # zle! a ma typ Scalar
 
 z:Int #zle! przy deklaracji trzeba zainicjowac zmienna
-
 \end{lstlisting}
-
+Każda zmienna przed użyciem musi zostać zadeklarowana. Nie można zadeklarować zmiennej nie inicjalizując jej jednocześnie. Mechanizm ten chronić ma przed przypadkowymi błędami częstymi w innych językach.
 
 \subsection{Operatory}
 Język posiada 7 operacji wspierających obliczenia wektorowe:
@@ -113,23 +113,28 @@ Język posiada 7 operacji wspierających obliczenia wektorowe:
 
 Przykłady działania operacji:
 \begin{lstlisting}[frame=single]
-[2,3,4,5,6] + [1,2,3,4,5] # =[3,5,7,9,11]
-[1,2,4,8] - [1, 1, 2, 4] # =[0,1,2,4]
-[1,2,3,4,5,6] * [2,2,2,2,2,2] # =[2,4,6,8,10,12]
-[8,6,4] / [2,2,2] # =[4,3,2]
-[1,1,1,1] ? [2,2,2,2] # =8
-[64, 7, 24] % [8, 3, 16] # =[8, 3, 16]
+[2,3,4,5,6] + [1,2,3,4,5]   
+   # =[3,5,7,9,11]
+[1,2,4,8] - [1, 1, 2, 4] 
+   # =[0,1,2,4]
+[1,2,3,4,5,6] * [2,2,2,2,2,2] 
+   # =[2,4,6,8,10,12]
+[8,6,4] / [2,2,2] 
+   # =[4,3,2]
+[1,1,1,1] ? [2,2,2,2] 
+   # =8
+[64, 7, 24] % [8, 3, 16]
+   # =[8, 3, 16]
 rot90 [10,10,10,10,10,10,10,10] 
-    # =[10, 246, 10, 246, 10, 246, 10, 246]
+   # =[10, 246, 10, 246, 10, 246, 10, 246]
 \end{lstlisting}
-
+W powyższym kodzie po każdej operacji w następującej linijce podajemy zakomentowany wynik danego działania.
 \subsection{Instrukcje warunkowe}
 Instrukcja warunkowa ma postać:
 \begin{center}
 \textbf{if} \textit{expression} \textbf{then} \textit{expression\_block} \textbf{else} \textit{expression\_block} \textbf{end}
 \end{center}
-Wartością zwracaną przez instrukcje jest ostatnie wyrażenie w pierwszym lub drugim bloku. Typem instrukcji jest typ ostatniego wyrażenia w obu blokach. Wynika z tego, że wartości zwracane przez oba bloki muszą mieć ten sam typ, by kod mógł zostać poprawnie otypowany. Blok pierwszy wykonywany jest jeśli wyrażenie warunkowe było różne od zera lub nie było wektorem zer, natomiast drugi w odwrotnym przypadku.
-Przykład użycia:
+Przykład użycia:\\
 \begin{lstlisting}[frame=single]
 a:Int = 0
 b:IntVector[4] = [0,1,2,3]
@@ -139,14 +144,13 @@ c:IntVector[4] = if a then b else b + [1,1,1,1] end
 d:IntVector[4] = if a+1 then b else b ? [1,2,1,2]
 # niezgodne typy: w bloku pierwszym wektor, w drugim skalar 
 \end{lstlisting}
-
+Wartością zwracaną przez instrukcje jest ostatnie wyrażenie w pierwszym lub drugim bloku. Typem instrukcji jest typ ostatniego wyrażenia w obu blokach. Wynika z tego, że wartości zwracane przez oba bloki muszą mieć ten sam typ, by kod mógł zostać poprawnie otypowany. Blok pierwszy wykonywany jest jeśli wyrażenie warunkowe było różne od zera lub nie było wektorem zer, natomiast drugi w odwrotnym przypadku.
 \subsection{Pętla loop}
 Składnia pętli loop:
 \begin{center}
 \textbf{loop(} \textit{expression} \textbf{):} \textit{expression\_block} \textbf{end}
 \end{center}
-Pętla loop jako jedyna formuła w języku nie zwraca żadnego typu i służy do repetywnego wykonywania kodu podanego w ciele pętli. Jeśli ilość iteracji jest skalarem \textit{n} pętla wykonywana jest \textit{n}-krotnie. Jeśli wyrażenie wewnętrz okrągłych nawiasów jest wektorem to ilość powtórzeń instrukcji jest ostatnim elementem wektora.\\
-Przykład:
+Przykład:\\
 \begin{lstlisting}[frame=single]
 term2:IntVector[8] = [1,1,1,1,1,1,1,1]
 result:IntVector[8] = [0,0,0,0,0,0,0,0]
@@ -157,17 +161,19 @@ end
 result
 #expecting [254, 254, 254, 254, 254, 254, 254, 254] 
 \end{lstlisting}
-
+Pętla loop jako jedyna formuła w języku nie zwraca żadnego typu i służy do repetywnego wykonywania kodu podanego w ciele pętli. Jeśli ilość iteracji jest skalarem \textit{n} pętla wykonywana jest \textit{n}-krotnie. Jeśli wyrażenie wewnętrz okrągłych nawiasów jest wektorem to ilość powtórzeń instrukcji jest ostatnim elementem wektora.
 \section{Kompilacja}
+Po napisaniu programu użytkownik musi skompilować go do binarnej reprezentacji gotowej do wysłania na FPGA. Proces kompilacji może zostać zakłócony przez błędy syntaktyczne i semantyczne kodu. Kompilator może zwrócić też informacje o niepowodzeniu jeśli przewidzi, że kompilowany kod z pewnych powodów może nie zostać poprawnie uruchomiony na FPGA.
 \subsection{Użycie kompilatora}
-Do kompilacji należy użyć programu \textit{compilator} napisanego w haskellu i wygenerowanego w folderze \textit{dist/}(patrz 1.1). Kompilowany plik powinien się znajdować w aktualnym folderze i mieć nazwę \textit{example}.
-Podczas kompilacji na ekran wypisane zostaną informacje takie jak informacje o kolejnych etapach kompilacji, drzewo AST programu, wygenerowany kod ASM oraz użyte w programie stałe.
+Do kompilacji należy użyć programu \textit{compilator} napisanego w haskellu i wygenerowanego w folderze \textit{dist/}(patrz 1.1). Kompilowany plik powinien znajdować się w aktualnym folderze i mieć nazwę \textit{example}.
+Podczas kompilacji na ekran wypisane zostaną informacje o kolejnych etapach pracy, drzewo syntaktyczn programu, wygenerowany kod asemblera oraz użyte w programie stałe.
 \begin{figure}[!h]
 \centering
 \includegraphics[scale=0.75]{images/kompilator}
 \caption{Kompilacja programu}
-\end{figure}
-\clearpage
+\end{figure}\clearpage
+Jeśli kompilacje przebiegnie poprawnie w bieżącym katalogu zapisany zostanie wygenerowany program.
+
 \subsection{Możliwe błędy}
 Proces kompilacji może zostać przerwany przez następujące błędy:
 \begin{description}
@@ -236,35 +242,40 @@ y:Int = 0
 y:Int = 1
 \end{lstlisting} 
   \item[Cannot assign X to Y of type]\hfill \\
-  Niezgodność typów przy przypisywaniu do zmiennej.
-  \begin{lstlisting}[frame=single]
+    \begin{lstlisting}[frame=single]
 x:IntVector[5] = [1,2,3,4,5] ? [1,2,3,4,5]
 \end{lstlisting} 
+  Niezgodność typów przy przypisywaniu do zmiennej.
+
 \end{description}
 
 \section{Wysyłanie programu i odbieranie wyników}
-Skompilowany kod zapisywany jest w binarnej reprezentacji do pliku \textit{binarka}. Jest on gotowy do wysłania na płytkę FPGA. Służyć do tego może poprzednio skompilowany program \textit{send\_bin}.
+Skompilowany kod zapisywany jest w binarnej reprezentacji do pliku \textit{binary}. Jest on gotowy do wysłania na płytkę FPGA. Służyć do tego może poprzednio skompilowany program \textit{send\_bin}.
 \begin{center}
-sendbin binarka
+./sendbin binary
 \end{center} 
 Po wysłaniu programu na zestaw startowy zostanie on wykonany, a następnie na ekranie wyświetli się wynik programu.
-\begin{figure}[!h]
+\begin{figure}[H]
 \centering
 \includegraphics[scale=0.75]{images/exec1}
 \caption{Kod źródłowy}
 \end{figure}
-\begin{figure}[!h]
+Pierwszym krokiem jest napisanie poprawnego programu - np. paru iteracji w pętli i obliczenia iloczynu skalarnego.
+\begin{figure}[H]
 \centering
 \includegraphics[scale=0.75]{images/exec2}
 \caption{Kompilacja kodu}
 \end{figure}
-\begin{figure}
+Następnie kod należy skompilować. Jeśli kompilator nie zaraportował żadnego błędu wygenerowany zostanie odpowiedni plik programu.
+\begin{figure}[H]
 \centering
 \includegraphics[scale=0.75]{images/exec3}
 \caption{Wysyłanie kodu na urządzenie}
 \end{figure}
-\begin{figure}
+Jeżeli urządzenie zostało poprawnie podpięte do komputera(tak jak podano w rozdziale 2.2) program zostanie przesłany na FPGA poprzez wirtualny port COM.
+\begin{figure}[H]
 \centering
 \includegraphics[scale=0.75]{images/exec4}
 \caption{Odbieranie wyniku}
 \end{figure}
+Po przeprowadzeniu obliczeń procesor odeśle wynik a program z którego dane zostały wysłane - odbierze go i wypisze na ekranie.
