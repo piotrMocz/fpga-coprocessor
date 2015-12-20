@@ -1,0 +1,30 @@
+\section{Uwagi dotyczące budowania projektu}
+
+Zwykły użytkownik systemu nie musi zajmować się jego budowaniem, jednak programista, pragnący rozwijać system, musi zapoznać się ze specyfiką budowania projektów języka Haskell w systemie Cabal oraz języka VHDL w środowisku Quartus.
+
+\subsection{Projekt języka Haskell}
+Cały projekt haskellowy mieści się w katalogu \texttt{lang}. Pierwszą rzeczą, na którą należy zwrócić uwagę jest plik \texttt{parser.cabal}. Jest to plik opisujący projekt Cabala, który służy nam m.in. do określania zależności projektu wraz z ich wersjami, dostarczania informacji o projekcie, ustawiania globalnych opcji kompilacji dla całego projektu, czy włączania rozszerzeń języka Haskell na poziomie projektu. W pliku tym możemy zdecydować, czy projekt ma być budowany jako biblioteka (\textit{library}) czy wykonywalny program (\textit{executable}). Możemy również, jak w przypadku naszego projektu, zbudować projekt na obydwa sposoby. Dla obydwu rodzajów budowania podajemy katalogi, w których kompilator ma szukać plików źródłowych (\texttt{hs-source-dirs}), opcje kompilatora (\texttt{Ghc-Options}) i zależności (\texttt{build-depends}).
+
+Zależności są polem, na które warto zwrócić szczególną uwagę. W przeciwieństwie do systemów budowania języka Java, takich jak Maven, Cabal nie ściąga archiwów \texttt{.jar} z bibliotekami. Ściąga jedynie źródła, które potem kompiluje. Tworzy to pewne problemy z wersjami bibliotek (wyobraźmy sobie sytuację, w której biblioteka $A$ wymaga biblioteki $B$ w wersji 0.1 oraz biblioteki $C$ w wersji 0.2, a z kolei biblioteka $B$ wymaga biblioteki $C$ w wersji 0.3 --- problemy z wersjami bibliotek są powszechne przy stosowaniu Cabala), które możemy próbować obchodzić przez wymuszanie konkretnych wersji bibliotek lub ich przedziałów. W naszym projekcie jednak wybór padł na używanie wszystkich bibliotek w ich najnowszych wersjach, więc żadne wersje nie są sztucznie wymuszane. Jest to możliwe również dzięki zastosowaniu technologii \textit{sandboxów}. Zamiast instalować wszystkie biblioteki globalnie do systemu (co potencjalnie rodzi konflikty, jeśli mamy więcej niż jeden projekt), instalujemy je do osobnego środowiska umieszczonego w osobnym folderze, które możemy łatwo usunąć i odtworzyć w razie problemów.
+
+Po zainstalowaniu projektu poleceniem \texttt{cabal install} utworzy się folder \texttt{dist}, w którym można znaleźć pliki wykonywalne i biblioteki utworzone podczas budowania. Popularną praktyką wśród programistów Haskella jest usuwanie katalogu \texttt{dist} w razie problemów z budowaniem i \texttt{.cabal-sandbox} w razie problemów z wersjami pakietów.
+
+\subsection{Projekt FPGA}
+
+Projekt FPGA jest utworzony w środowisku Quartus II firmy Altera, które automatyzuje budowanie projektu przez dostarczenie zintegrowanego środowiska do projektowania i syntezy układów. Kompilacja odbywa się za pomocą graficznego interfejsu i nie wymaga szczegółowego opisywania. W razie problemów z kompilacją Altera dostarcza obszerną dokumentację do środowiska Quartus. Ważnym plikiem jest \texttt{fpga\_coprocessor.qsf}, który zawiera przypisania pinów (\textit{pin assignments}) dla projektu. W przypadku budowania projektu dla innej płytki, niż Altera De0-Nano, należy zmienić plik tak, by nazwy pinów odpowiadały tym, które faktycznie są dostępne na płytce. Jest to o tyle istotne, że w przypadku rozszerzania układu może zajść konieczność użycia większej płytki (z większą ilością elementów logicznych i szybszym wejściem-wyjściem).
+
+\subsection{Pliki modułu komunikacji}
+
+Aby skompilować prosty program do obsługi komunikacji z koprocesorem, który można znaleźć w katalogu \texttt{fpga/pc} wystarczy zwyczajny kompilator języka C. Przy tworzeniu projektu wykorzystano kompilator GCC w wersji 5.1, choć każdy kompilator obsługujący standard C99 wystarczy do skompilowania programu. Przykładowe polecenie to: \texttt{gcc -o sender sender.c}. Dodatkowo, komunikacja odbywa się przez port szeregowy, więc trzeba zadbać, by urządzenie w systemie, jako które widoczny jest nasz port, było faktycznie rozpoznawane przez system jako port szeregowy. Służy temu polecenie \texttt{setserial}, dostępne w systemach linuksowych po zainstalowaniu pakietu o tej samej nazwie. Przykładowo, używając systemu Fedora 22 musimy wydać polecenie: \texttt{sudo dnf install setserial \&\& sudo setserial -g /dev/ttyUSB0}. W powyższych instrukcjach bazujemy na założeniu, że do komunikacji używana jest przejściówka USB-UART. Jeśli do rozwoju systemu zostanie użyty inny sposób podłączenia (np. bezpośrednio do pinów GPIO na urządzeniach typu Arduino bądź Raspberry Pi), nazwa urządzenia może ulec zmianie.
+
+\section{Podsumowanie}
+
+Omawiany w niniejszej dokumentacji projekt jest kompletnym systemem, którego w jego obecnej formie można używać do wykonywania obliczeń na dobrze dobranych danych wejściowych. Natura projektu powoduje jednak, że dostarcza on niezliczonych możliwości jego rozwijania. Poniżej prezentujemy kilka przykładowych obszarów, w których można ulepszyć projekt:
+
+\begin{itemize}
+  \item dodanie obsługi dla większej ilości instrukcji -- w tym kierunku można układ oraz język rozwijać praktycznie bez granic, jako że ilość operacji, które można wykonywać na wektorach jest niezliczona
+  \item rozszerzenie typów danych -- oprócz obecnie używanego typu danych układ bardzo skorzystałby na dodaniu chociażby typu zmiennoprzecinkowego podwójnej precyzji czy dodanie typu macierzowego (jako generalizacji typu wektorowego)
+  \item ulepszenie sprzętu -- w razie rozwijania układu konieczne będzie przeniesienie projektu na większy układ FPGA. Oprócz tego, istnieją szybsze sposoby komunikacji niż UART -- do naszego zastosowania idealne wydają się układy SoC (\textit{System-On-a-Chip}), które na jednej płytce posiadają układ FPGA i zwykły procesor, połączone szybką magistralą.
+\end{itemize}
+
+Pragniemy tym samym zachęcić do rozwijania systemu w przyszłości. Kod jest dostępny publicznie, pod adresem \texttt{https://github.com/piotrMocz/fpga-coprocessor}, gdzie można go pobrać oraz kontrybuować do projektu (na przykład za pomocą mechanizmu \textit{fork-pull request}).
