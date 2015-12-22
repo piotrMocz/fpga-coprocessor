@@ -5,6 +5,30 @@ Pierwszym i podstawowym wymaganiem stawianym systemowi jest sprawne i bezbłędn
 
 Tak więc po pierwsze potrzebujemy kompilatora, który produkuje poprawne programy. Niezwykle łatwo przy budowie języka przeoczyć pewne własności, które ujawniają się dopiero przy pewnych szczególnych sytuacjach (jak na przykład pętla o zerowej ilości iteracji). Przez poprawność programów rozumiemy nie tylko poprawność logiczną kodu maszynowego, ale również odfiltrowanie niepoprawnych programów użytkownika. Po drugie, transmisja danych musi być niezawodna. Przy niskopoziomowym przesyłaniu danych przez port szeregowy łatwo może dojść do przekłamania niektórych bitów i w efekcie do zepsucia całego wysyłanego do koprocesora programu. Aby tego uniknąć, należy zadbać o właściwą obsługę portu od strony oprogramowania, układu FPGA, jak i sprzętu użytego do połączenia całego systemu. Kolejnym elementem warunkującym poprawność działania systemu jest właściwa implementacja układu na FPGA, gdzie łatwo o subtelne pomyłki, jak na przykład za mała liczba cykli przeznaczanych na odczyt z pamięci.
 
+Możemy zatem wyróżnić w naszym systemie wymagania funkcjonalne:
+\begin{itemize}
+  \item stworzenie języka programowania, wspierającego m.in. następujące operacje:
+  \begin{itemize}
+    \item deklaracje i przypisania zmiennych
+    \item instrukcje warunkowe
+    \item pętle
+    \item kontrolę typów
+    \item operacje arytmetyczne na wektorach
+  \end{itemize}
+  \item kompilacja programów w wyżej opisanym języku do postaci binarnej
+  \item przesyłanie programów do procesora na układzie FPGA
+  \item odbieranie wyników z procesora
+  \item wykonanie programu na procesorze (operacje na krótkich wektorach powinny być atomowe i wykonywać się w stałej, niewielkiej liczbie cykli)
+\end{itemize}
+
+Dodatkowo, możemy mówić o (wspomnianych wyżej) wymaganiach niefunkcjonalnych:
+\begin{itemize}
+  \item ,,wysokopoziomowość'' języka -- użytkownik nie powinien pisać ręcznie typowych działań na wektorach
+  \item wygoda przetwarzania danych wektorowych
+  \item wydajność całego systemu
+  \item niezawodność i brak błędów (istone zwłaszcza przy implementacji komunikacji między komputerem a układem FPGA)
+\end{itemize}
+
 \section{Zrealizowane funkcjonalności}
 Wyniki przeprowadzanych testów wskazują, że system spełnia powyższe wymagania. Wydajność systemu gwarantowana jest przez równoległość przetwarzania danych po stronie koprocesora, oraz odpowiedni dobór technologii i przemyślany program po stronie kompilatora (użyto języka Haskell, który świetnie nadaje się do tworzenia kompilatorów, a dodatkowo posiada niezwykle dopracowany, optymalizujący kompilator GHC).
 

@@ -22,12 +22,20 @@ Język programowania powinien, w~naszym przekonaniu, z~jednej strony pozwalać p
   \item wbudowane w język operacje na wektorach -- aby operować wektorami nie powinno być konieczne odwoływanie się do pamięci czy korzystanie ze specjalnych bibliotek
 \end{itemize}
 
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.5]{images/SystemOverview.png}
+    \caption{Schemat działania systemu. Na diagramie przedstawiono ogólną ideę, wedle której działa system.}
+    \label{fig:SystemOverview}
+  \end{center}
+\end{figure}
+
 \subsection{Procesor}
 Procesor powinien być jak najmniej skomplikowany, a~jednocześnie jak najwydajniej wykonywać swoje zadanie. Prostą implikacją tych dwóch wymagań jest architektura ukierunkowana na przetwarzanie wektorów. Operacje na wektorach o~pewnej ustalonej długości powinny odbywać się w~jednym cyklu zegara. Koncepcyjnie jest to zbliżone do AVX w~procesorach firmy Intel. Tam procesory potrafią wykonywać operacje na czterech liczbach zmiennoprzecinkowych w jednym cyklu, jeśli użyjemy specjalnych instrukcji. Nas interesuje dużo ściślejsza integracja wektorowej architektury -- każda instrukcja ma być wektorowa, jako że wektor jest podstawową jednostką danych. Patrząc z~ilościowego punktu widzenia na aplikacje wymagające przetwarzania wektorów, dużo mniej tracimy traktując każdy skalar w~programie jako wektor o~pewnej długości z~jedną niezerową współrzędną, niż indywidualnie przetwarzając każdy element wektora.
 
 Na ogólną wydajność systemu ma wpływ także rozmiar kodu maszynowego generowanego przez kompilator, a~ta jest bezpośrednio zależna od architektury procesora. Panuje zgodna opinia, że najmniejszy rozmiar kodu maszynowego uzyskują procesory działające na zasadzie maszyny stosowej. Oprócz tego dobrze, by każda z instrukcji miała stałą długość (dzięki temu dużo prostsze jest ich dekodowania) oraz by każda z~instrukcji miała niewielką długość. Optymalną długością instrukcji jest jeden bajt -- dzięki temu łatwo jest je przesyłać, a~program zajmuje bardzo niedużo miejsca.
 
 \subsection{Komunikacja}
-Moduł komunikacyjny będzie oparty na standardzie UART, ale wraz z~rozwojem systemu będzie można zaimplementować szybsze metody komunikacji. UART ma zalety zarówno w postaci stosunkowej łatwości implementacji na układzie FPGA, jak i~łatwości obsługi po stronie komputera PC z~systemem Linux. W przypadku nowych komputerów, które nie posiadają portu RS-232 można zastosować szerokodostępne i~tanie przejściówki USB-UART, które pozwalają nam korzystać z~portu UART z~poziomu programów w~C tak samo, jak z~każdego innego urządzenia wejścia-wyjścia w~systemie.
+Moduł komunikacyjny jest oparty na standardzie UART, ale wraz z~rozwojem systemu będzie można zaimplementować szybsze metody komunikacji. UART ma zalety zarówno w postaci stosunkowej łatwości implementacji na układzie FPGA, jak i~łatwości obsługi po stronie komputera PC z~systemem Linux. W przypadku nowych komputerów, które nie posiadają portu RS-232 można zastosować szerokodostępne i~tanie przejściówki USB-UART, które pozwalają nam korzystać z~portu UART z~poziomu programów w~C tak samo, jak z~każdego innego urządzenia wejścia-wyjścia w~systemie.
 
 Potrzebne komponenty to oczywiście moduł UART zaimplementowany na FPGA, jak i~program, który pozwoli na przesyłanie danych pomiędzy komputerem i~koprocesorem. Program powinien prezentować otrzymane od procesora wyniki w~możliwie czytelny sposób tak, by umożliwić ich dalszą analizę.
