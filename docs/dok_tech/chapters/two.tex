@@ -193,7 +193,16 @@ Koprocesor został zaimplementowany na układzie FPGA, a do opisu sprzętu użyt
 
 Do tworzenia projektu na FPGA użyto dedykowanego do układów Altery środowiska Quartus II, które dostarcza pełny zestaw narzędzi do tworzenia i testowania projektów FPGA. Quartus posiada przede wszystkim zaawansowany kompilator, syntezator i \textit{fitter}, które potrafią z opisu w języku VHDL utworzyć fizyczny rozkład bramek na płytce. Jest to wysoce nietrywialne zadanie, jako że muszą one najpierw stworzyć na podstawie opisu poprawny układ elektroniczny, a następnie wielokrotnie go optymalizować tak, by spełnił wymagania czasowe, napięciowe oraz przestrzenne. Istotnym parametrem syntezy i \textit{fittingu} jest ukierunkowanie na szybkość układu lub niską liczbę bramek (są to wzajemnie wykluczające się wartości). Do budowania projektu używano ustawień nastawionych na jak największą szybkość: kompletny układ zajmuje około 4500 elementów logicznych, czyli 25\% zasobów płytki. Z tego powodu można było sobie pozwolić na optymalizację pod kątem czasu działania.
 
-W następnych akapitach opisane zostaną główne komponenty wchodzące w skład koprocesora. Każdy z nich jest osobną jednostką (\textit{entity}) języka VHDL.
+W następnych akapitach opisane zostaną główne komponenty wchodzące w skład koprocesora, których strukturę można zaobserwować na rysunku \ref{fig:processor-scheme}. Każdy z nich jest osobną jednostką (\textit{entity}) języka VHDL.
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[scale=0.5]{images/Processor-scheme.png}
+    \caption{Przedstawione na diagramie blokowym główne komponenty procesora. Wymiana komunikatów pomiędzy nimi odbywa się za pośrednictwem sygnałów, bezpośrednio podłączonych w układzie (flag, informujących o występowaniu pewnych zdarzeń i magistral niosących dane).}
+    \label{fig:processor-scheme}
+  \end{center}
+\end{figure}
+
 
 
 \subsection{Główny moduł}
